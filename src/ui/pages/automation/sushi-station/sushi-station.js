@@ -1,33 +1,68 @@
 /**
  * Automation › Sushi Station: Auto Play and Sort on the in-game sushi board, with Auto Play's settings. Knowledge XP
  * isn't automation (it adds XP from nothing), so it stays on Sushi Station's own Tools page.
+ *
+ * The automation pages' look (AutomationPage's parts): the page's buttons by the title (Auto Play, Sort, Refresh), then
+ * one list whose Settings group holds Auto Play's line (what it is doing) and its settings, each saved on its own: a
+ * number on Enter or on leaving its field, a switch on flip.
  */
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { executeCheatAction, fetchConfig, saveConfigPart } from "../../../services/api.js";
-import { AccountTabHeader } from "../../../components/views/account/components/AccountTabHeader.js";
+import { NumberInput } from "../../../components/NumberInput.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
-const { div, label, input, p, h3, span } = van.tags;
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { announce } from "../../../components/inPlace.js";
+import { joinClasses } from "../../../components/views/account/accountShared.js";
+const { div, label, input, span } = van.tags;
+
+// The numbers Auto Play needs, with their names in a reason and their lowest value; the highest comes from the board.
+const NUMBERS = {
+    tier: ["Purchase tier", 1],
+    targetTier: ["Target tier", 1],
+    targetCount: ["Target quantity", 1],
+    reserveSlots: ["Empty slots", 0],
+};
+const SWITCHES = {
+    extendChain: "Extended East Wind chain",
+    higherTier: "Higher East Wind tier limit",
+    ingameButtons: "Show in-game buttons",
+};
 
 function SushiAutomation() {
     const enabled = van.state(false);
     const state = van.state({});
     const pending = van.state(false);
     const settingsLoaded = van.state(false);
-    const settings = {
-        tier: van.state(""),
-        targetCount: van.state(""),
-        targetTier: van.state(""),
-        reserveSlots: van.state(""),
-        extendChain: van.state(false),
-        higherTier: van.state(false),
-        ingameButtons: van.state(false),
-    };
+    const loading = van.state(true);
+    const error = van.state(null);
+    // A number as its field shows it (text); a switch as true or false.
+    const settings = Object.fromEntries(
+        [...Object.keys(NUMBERS), ...Object.keys(SWITCHES)].map((key) => [key, van.state(key in NUMBERS ? "" : false)])
+    );
+    // What the last press or read said, on Auto Play's line in place of the game's words: a failure in red. It takes
+    // the line's place, so nothing under it moves.
     const feedback = van.state("");
+    const failed = van.state(false);
+    const say = (text, isFailure = false) => {
+        feedback.val = text;
+        failed.val = isFailure;
+    };
+    let saved = null; // the settings as the config holds them
+    const saves = []; // every setting's save, to know when one is running
+    const settingsSaving = () => saves.some((save) => save.isBusy() || save.status.val === "loading");
+    const show = (key) => (settings[key].val = key in NUMBERS ? String(saved[key] ?? "") : Boolean(saved[key]));
+    // The settings as the config holds them, remembered as what is saved.
+    const remember = (config) => {
+        saved = { ...config.cheatConfig.w7.sushitools };
+        return saved;
+    };
+
     let actions = 0; // counts refreshes and clicks, so a status poll that started before one doesn't undo it
     async function refresh() {
         actions++;
@@ -38,68 +73,65 @@ function SushiAutomation() {
             const keepSettings = settingsSaving();
             const config = await fetchConfig();
             if (!keepSettings && !settingsSaving()) {
-                const saved = remember(config);
-                for (const [key, value] of Object.entries(settings)) value.val = saved[key];
+                remember(config);
+                Object.keys(settings).forEach(show);
             }
             state.val = await command("status");
             settingsLoaded.val = true;
             enabled.val = state.val.enabled;
-            feedback.val = "";
-        } catch (error) {
-            feedback.val = error.message;
+            say("");
+            error.val = null;
+        } catch (caught) {
+            // Before the first read the page has nothing to show: the shared failure says it. After it, the line does.
+            if (!saved) error.val = caught.message;
+            else say(caught.message, true);
         } finally {
             pending.val = false;
+            loading.val = false;
         }
     }
-    // The settings as they'd be saved; throws a short reason for a value that can't be.
-    const readDraft = () => {
-        const draft = Object.fromEntries(Object.entries(settings).map(([key, value]) => [key, value.val]));
-        const ranges = {
-            tier: ["purchase tier", 1, state.val.maxPurchaseTier],
-            targetTier: ["target tier", 1, state.val.maxTier + 1],
-            targetCount: ["target quantity", 1, 120],
-            reserveSlots: ["empty slots", 0, 119],
+
+    // The saved settings (`base`) with `keys` as the page shows them (or as `typed` gives them); throws a short reason
+    // for one of those that can't be. Only the numbers being saved are checked, so a saved one the board no longer allows
+    // doesn't hold back another's save.
+    const draftWith = (keys, base = saved, typed = (key) => settings[key].val) => {
+        const draft = { ...base };
+        for (const key of keys) draft[key] = typed(key);
+        const max = {
+            tier: state.val.maxPurchaseTier,
+            targetTier: state.val.maxTier + 1,
+            targetCount: 120,
+            reserveSlots: 119,
         };
-        for (const [key, [name, min, max]] of Object.entries(ranges)) {
+        for (const key of keys.filter((key) => key in NUMBERS)) {
+            const [name, min] = NUMBERS[key];
             const value = Number(draft[key]);
-            if (String(draft[key]).trim() === "" || !Number.isInteger(value) || value < min || value > max)
-                throw new Error(`${name}: ${min} to ${max}`);
+            if (String(draft[key]).trim() === "" || !Number.isInteger(value) || value < min || value > max[key])
+                throw new Error(`${name}: ${min} to ${max[key]}`);
             draft[key] = value;
         }
         // The board's unlocked slots, once the status has read the board.
         const slots = state.val.working && state.val.working.length + state.val.reserved.length;
-        if (slots && draft.reserveSlots >= slots) throw new Error(`empty slots: ${slots - 1} at most on this board`);
-        if (slots && draft.targetCount > slots - draft.reserveSlots)
-            throw new Error(`target quantity: ${slots - draft.reserveSlots} at most on this board`);
-        return draft;
+        if (slots && keys.includes("reserveSlots") && draft.reserveSlots >= slots)
+            throw new Error(`Empty slots: ${slots - 1} at most on this board`);
+        if (slots && keys.some((key) => key === "targetCount" || key === "reserveSlots"))
+            if (draft.targetCount > slots - draft.reserveSlots)
+                throw new Error(`Target quantity: ${slots - draft.reserveSlots} at most on this board`);
+        return Object.fromEntries(Object.keys(settings).map((key) => [key, draft[key]]));
     };
-    let savedDraft = null;
-    // The settings as the config holds them, remembered as what is saved.
-    const remember = (config) => {
-        const saved = config.cheatConfig.w7.sushitools;
-        savedDraft = JSON.stringify(Object.fromEntries(Object.keys(settings).map((key) => [key, saved[key]])));
-        return saved;
-    };
-    async function saveSettings(draft = readDraft()) {
-        const { result, config } = await saveConfigPart(() => ({ cheatConfig: { w7: { sushitools: draft } } }));
+    const same = (draft) => Object.keys(settings).every((key) => draft[key] === saved[key]);
+    // `recheck(held)`, when given, checks the save again against the settings the file holds when its turn comes, so
+    // two rows saved at once can't leave a pair that doesn't fit the board (#323 review).
+    async function saveSettings(draft, recheck = null) {
+        const { result, config } = await saveConfigPart((now) => {
+            recheck?.(now.cheatConfig.w7.sushitools);
+            return { cheatConfig: { w7: { sushitools: draft } } };
+        });
         remember(config);
         if (result.message.includes("kept its old settings"))
-            throw new Error("saved, but the running game kept its old settings");
+            throw new Error("Saved, but the running game kept its old settings");
     }
-    // The settings save on Enter, on leaving the section, or when a toggle changes.
-    const settingsSave = useAutoSave({
-        prepare: () => {
-            if (!settingsLoaded.val || enabled.val) return { unchanged: true };
-            const draft = readDraft();
-            return JSON.stringify(draft) === savedDraft ? { unchanged: true } : { write: () => saveSettings(draft) };
-        },
-        revert: () => {
-            if (!savedDraft) return;
-            const saved = JSON.parse(savedDraft);
-            for (const [key, value] of Object.entries(settings)) value.val = saved[key];
-        },
-    });
-    const settingsSaving = () => settingsSave.isBusy() || settingsSave.status.val === "loading";
+
     async function command(action) {
         const response = await executeCheatAction("w7 sushitools" + (action ? " " + action : ""));
         // An answer that isn't the game's JSON is said plainly, never as the parser's words.
@@ -113,154 +145,187 @@ function SushiAutomation() {
         actions++;
         pending.val = true;
         try {
-            if (action === "" && !enabled.val) await saveSettings();
+            // Auto Play starts with the settings as the page shows them.
+            if (action === "" && !enabled.val) {
+                const draft = draftWith(Object.keys(settings));
+                if (!same(draft)) await saveSettings(draft);
+            }
             const result = await command(action);
             enabled.val = result.enabled;
             state.val = { ...state.val, error: null };
-            feedback.val = result.message;
-        } catch (error) {
-            feedback.val = error.message;
+            say(result.message);
+            announce(result.message);
+        } catch (caught) {
+            say(caught.message, true);
+            announce(caught.message);
         } finally {
             pending.val = false;
         }
     }
-    // "Show in-game buttons" saves one at a time, each saving the switch as it is then, so the last choice wins.
-    let buttonsSave = Promise.resolve();
-    const locked = () => enabled.val || pending.val || !settingsLoaded.val;
-    // Settings fields stay usable while they save, so a save never takes their focus away.
-    const settingsLocked = () => enabled.val || !settingsLoaded.val;
-    const numberField = (title, value, min = 1) =>
-        label(
-            { class: "sushi-setting" },
-            span({ class: "sushi-setting__title" }, title),
-            input({
-                "aria-label": title,
-                type: "number",
-                min,
-                step: 1,
-                value,
-                disabled: settingsLocked,
-                oninput: (e) => {
-                    value.val = e.target.value;
-                },
-            })
-        );
-    const toggle = (title, value, save = () => settingsSave.save()) =>
-        label(
-            { class: "toggle-switch sushi-toggle" },
-            input({
-                type: "checkbox",
-                role: "switch",
-                checked: value,
-                disabled: settingsLocked,
-                onchange: (e) => {
-                    value.val = e.target.checked;
-                    void save();
-                },
-            }),
-            span({ class: "slider", "aria-hidden": "true" }),
-            span({ class: "label" }, title)
-        );
-    const controls = div(
-        { class: "scrollable-panel", "aria-busy": () => pending.val },
-        div(
-            { class: "sushi-tools-layout" },
-            AccountSection({
-                title: "AUTOMATION SETTINGS",
-                rootClass: "sushi-automation-controls",
-                body: [
+
+    // The settings change only while Auto Play is off, and once they were read.
+    const locked = () => enabled.val || !settingsLoaded.val;
+    const busy = () => pending.val || loading.val;
+
+    /** A number of Auto Play's: its own row, saved on Enter or on leaving the field. */
+    const NumberRow = (key) => {
+        const [name, min] = NUMBERS[key];
+        const value = settings[key];
+        const save = useAutoSave({
+            prepare: () => {
+                if (locked()) return { unchanged: true };
+                const draft = draftWith([key]);
+                if (draft[key] === saved[key]) return { unchanged: true };
+                // Saved: the field shows what the config now holds, unless the player typed on meanwhile.
+                const typed = value.val;
+                // Only this setting goes: another row's save still running keeps its own value (#323 review).
+                return {
+                    write: () =>
+                        saveSettings({ [key]: draft[key] }, (held) => draftWith([key], held, () => draft[key])).then(
+                            () => value.val === typed && show(key)
+                        ),
+                };
+            },
+            // Escape: the saved number comes back.
+            revert: () => saved && show(key),
+        });
+        saves.push(save);
+        const step = (delta) => () => {
+            if (locked()) return;
+            const now = Number.parseInt(value.val, 10);
+            value.val = String(Math.max(min, (Number.isNaN(now) ? min : now) + delta));
+        };
+        return AccountRow({
+            rowClass: "value-row automation-setting",
+            info: span({ class: "account-row__name" }, name),
+            controls: [
+                SaveState(save),
+                div(
+                    { class: "value-cells" },
                     div(
                         {
-                            class: () => `content-stack ${saveStateClass(settingsSave.status.val, settingsSave.undo)}`,
-                            ...settingsSave.handlers,
+                            class: () =>
+                                `value-cell column--field account-field-metric ${saveStateClass(save.status.val, save.undo)}`,
+                            ...save.handlers,
                         },
-                        div(
-                            { class: "sushi-settings-section" },
-                            h3("PURCHASE"),
-                            div({ class: "sushi-settings-grid" }, numberField("Purchase tier", settings.tier))
-                        ),
-                        div(
-                            { class: "sushi-settings-section" },
-                            h3("GOAL & BOARD"),
-                            div(
-                                { class: "sushi-settings-grid" },
-                                numberField("Target tier", settings.targetTier),
-                                numberField("Target quantity", settings.targetCount),
-                                numberField("Empty slots", settings.reserveSlots, 0)
-                            )
-                        ),
-                        div(
-                            { class: "sushi-settings-section" },
-                            h3("EAST WIND"),
-                            div(
-                                { class: "account-item-stack" },
-                                toggle("Extended East Wind chain", settings.extendChain),
-                                toggle("Higher East Wind tier limit", settings.higherTier)
-                            )
-                        )
-                    ),
+                        span({ class: "value-cell__label" }, name),
+                        NumberInput({
+                            value,
+                            mode: "int",
+                            "aria-label": name,
+                            disabled: locked,
+                            onDecrement: step(-1),
+                            onIncrement: step(1),
+                        })
+                    )
+                ),
+            ],
+        });
+    };
+
+    /** A switch of Auto Play's, saved on flip; it goes back when the save fails. In-game buttons save on their own. */
+    const SwitchRow = (key) => {
+        const name = SWITCHES[key];
+        const save = useAutoSave({ prepare: () => ({ unchanged: true }) });
+        saves.push(save);
+        let flips = 0;
+        const flip = async (on) => {
+            const mine = ++flips;
+            settings[key].val = on;
+            // Each flip saves only its own state, in the order flipped, so the last one wins.
+            const { ok } = await save.run(() => saveSettings({ [key]: on }), "toggle");
+            // A refused flip shows what the config holds, unless a newer flip is still to say its own.
+            if (!ok && saved && mine === flips) show(key);
+        };
+        return AccountRow({
+            rowClass: "value-row automation-setting",
+            info: span({ class: "account-row__name" }, name),
+            controls: [
+                SaveState(save),
+                div(
+                    { class: "value-cells" },
                     div(
-                        { class: "sushi-automation-footer" },
-                        p({ class: "sushi-setting__help" }, "Changes save as you make them. Auto Play saves them too."),
-                        SaveState({ ...settingsSave, className: "save-state--inline" })
-                    ),
-                ],
-            }),
-            div(
-                { class: "content-stack" },
-                AccountSection({
-                    title: "AUTOMATION",
-                    rootClass: "sushi-automation-controls",
-                    body: [
-                        AccountRow({
-                            info: "Target",
-                            badge: () => `${settings.targetCount.val || "…"} × tier ${settings.targetTier.val || "…"}+`,
-                        }),
-                        p({ class: "sushi-setting__help" }, "Idles at the goal. Disable and enable to run again."),
-                        div(
-                            { class: "account-item-stack" },
-                            ActionButton({
-                                label: () => (enabled.val ? "Disable Auto Play" : "Enable Auto Play"),
-                                // The page's one blue button; turning it off is the danger kind.
-                                variant: () => (enabled.val ? "danger" : "main"),
-                                disabled: () => pending.val || (!enabled.val && !settingsLoaded.val),
-                                onClick: () => run(""),
+                        { class: "value-cell column--switch" },
+                        span({ class: "value-cell__label" }, name),
+                        label(
+                            { class: "toggle-switch" },
+                            input({
+                                type: "checkbox",
+                                role: "switch",
+                                "aria-label": name,
+                                checked: settings[key],
+                                disabled: locked,
+                                onchange: (e) => void flip(e.target.checked),
                             }),
-                            ActionButton({ label: "Sort", disabled: locked, onClick: () => run("sort") })
-                        ),
-                        // Saved on its own, so a board setting that can't be saved doesn't hold it back.
-                        toggle(
-                            "Show in-game buttons",
-                            settings.ingameButtons,
-                            () =>
-                                (buttonsSave = buttonsSave.then(() =>
-                                    settingsSave.run(() => saveSettings({ ingameButtons: settings.ingameButtons.val }))
-                                ))
-                        ),
-                        div(
-                            { class: "sushi-automation-info" },
-                            p({ role: "status", "aria-live": "polite", class: "sushi-automation-status" }, () =>
-                                pending.val
-                                    ? "Working…"
-                                    : feedback.val || state.val.error || state.val.message || "Connecting…"
-                            )
-                        ),
-                    ],
-                })
+                            span({ class: "slider", "aria-hidden": "true" })
+                        )
+                    )
+                ),
+            ],
+        });
+    };
+
+    // Auto Play's own line: what it is doing now (the game's words), and the goal it idles at.
+    const autoPlayRow = AccountRow({
+        rowClass: "automation-row",
+        info: div(
+            { class: "account-row__name-group" },
+            span({ class: "account-row__name" }, "Auto Play"),
+            // Not a live region: it follows the game every two seconds. A press's outcome is announced (run).
+            span(
+                { class: () => joinClasses("automation-row__status", failed.val && !pending.val && "is-failed") },
+                () =>
+                    pending.val
+                        ? "Working…"
+                        : feedback.val || state.val.error || state.val.message || "Reading the board…"
+            ),
+            span({ class: "automation-pick__detail" }, () =>
+                settingsLoaded.val
+                    ? `Goal ${settings.targetCount.val || "…"} × tier ${settings.targetTier.val || "…"}+. Idles there; disable and enable to run again.`
+                    : ""
             )
-        )
-    );
-    const root = div(
-        { class: "tab-container" },
-        AccountTabHeader({
-            title: "Sushi Station",
-            description: "Keep the in-game Sushi board open in sushi-move mode for Sort and Auto Play.",
-            actions: RefreshButton({ onRefresh: refresh, disabled: () => pending.val }),
-        }),
-        controls
-    );
+        ),
+    });
+
+    const root = PersistentAccountListPage({
+        rootClass: "tab-container scroll-container automation-page",
+        title: "Sushi Station",
+        description: "Keep the in-game Sushi board open in sushi-move mode for Sort and Auto Play.",
+        actions: [
+            ActionButton({
+                label: () => (enabled.val ? "Disable Auto Play" : "Enable Auto Play"),
+                // The page's one main button; turning it off is the danger kind.
+                variant: () => (enabled.val ? "danger" : "main"),
+                disabled: () => busy() || (!enabled.val && !settingsLoaded.val),
+                onClick: () => run(""),
+            }),
+            ActionButton({ label: "Sort", disabled: () => busy() || locked(), onClick: () => run("sort") }),
+            RefreshButton({ onRefresh: refresh, disabled: busy }),
+        ],
+        state: { loading, error },
+        loadingText: "Reading Sushi Station",
+        errorTitle: "Couldn't read Sushi Station",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed", "aria-busy": () => String(pending.val) },
+            ListPanel({
+                className: "automation-list",
+                body: div(
+                    { class: "automation-rows sushi-settings", style: "--value-columns: 9.5rem" },
+                    AccountSection({
+                        title: "Settings",
+                        body: [
+                            autoPlayRow,
+                            ...Object.keys(NUMBERS).map(NumberRow),
+                            ...Object.keys(SWITCHES).map(SwitchRow),
+                        ],
+                    })
+                ),
+            })
+        ),
+    });
     refresh();
-    // Follow Auto Play started, stopped or progressing elsewhere (the in-game buttons) while this tab is on screen.
+    // Follow Auto Play started, stopped or progressing elsewhere (the in-game buttons) while this page is on screen.
     let polling = false;
     let pollFailed = false;
     setInterval(async () => {
@@ -270,14 +335,14 @@ function SushiAutomation() {
         try {
             const status = await command("status");
             if (started !== actions) return; // a click's own answer is newer
-            if (pollFailed || status.message !== state.val.message || status.enabled !== enabled.val) feedback.val = "";
+            if (pollFailed || status.message !== state.val.message || status.enabled !== enabled.val) say("");
             pollFailed = false;
             state.val = status;
             enabled.val = status.enabled;
-        } catch (error) {
+        } catch (caught) {
             if (started !== actions) return;
             pollFailed = true;
-            feedback.val = error.message;
+            say(caught.message, true);
         } finally {
             polling = false;
         }
@@ -290,6 +355,6 @@ export default definePage({
     world: "automation",
     system: "Sushi Station",
     description: "Sort and Auto Play for the in-game sushi board.",
-    keywords: ["Sushi", "Auto Play", "Sort", "Sushi tools", "Tools"],
+    keywords: ["Sushi", "Auto Play", "Sort", "Sushi tools", "Tools", "East Wind", "Purchase tier", "Target tier"],
     component: SushiAutomation,
 });

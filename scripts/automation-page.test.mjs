@@ -1,6 +1,6 @@
 // Account › Automation (#92) on the fake game. The overview lists every "automation …" toggle with its switch and
 // status; a switch runs the cheat and keeps it in the startup cheats, Enable all runs on one click and Disable all
-// asks "Click again" first (#25). The Shops tab lists the shops by world; an item's switch and its stop-at (saved on
+// asks in the tray first (#25). The Shops tab lists the shops by world; an item's switch and its stop-at (saved on
 // Enter, empty for no limit) save cheatConfig.automation.shops to the game and the config file, and a save the game
 // refuses puts the row back and says why at the row.
 import assert from "node:assert/strict";
@@ -254,6 +254,8 @@ const ALL_CHEATS = [
     "automation summoning",
     "automation tesseract",
 ];
+// A tray tool that asks: its first answer ("Disable them").
+const answerYes = (root) => byClass(root, "tabbed-list__yes")[0].listeners.click({});
 const overview = (await importRepo("src/ui/pages/automation/overview/overview.js")).default.component();
 await until(() => row(overview, "Shops"), "the overview to list Shops");
 
@@ -282,7 +284,7 @@ test("a switch turns the automation on now and at every start, and off again", a
     assert.deepEqual(startup(), []);
 });
 
-test("Enable all runs on one click; Disable all asks Click again and writes nothing until the second", async () => {
+test("Enable all runs on one click; Disable all asks in the tray and writes nothing until it is answered", async () => {
     await until(() => button(overview, "Enable all"), "Enable all");
     await button(overview, "Enable all").listeners.click({ preventDefault() {} });
     await until(() => shopsOn() && button(overview, "Disable all"), "every automation to run");
@@ -292,12 +294,15 @@ test("Enable all runs on one click; Disable all asks Click again and writes noth
     const disable = button(overview, "Disable all");
     await disable.listeners.click({ preventDefault() {} });
     await settle();
-    assert.equal(disable.attributes["data-again"], "Click again");
-    assert.equal(commands.length, since, "the first click runs nothing");
+    assert.ok(text(overview).includes(`Disable ${ALL_CHEATS.length} automations, now and at start?`), "the tray asks");
+    assert.equal(commands.length, since, "asking runs nothing");
     assert.equal(shopsOn(), true);
 
-    await disable.listeners.click({ preventDefault() {} });
-    await until(() => !shopsOn(), "the automation to stop");
+    await answerYes(overview);
+    await until(
+        () => !shopsOn() && commands.length - since === ALL_CHEATS.length && !startup().length,
+        "every automation to stop, now and at start"
+    );
     assert.deepEqual(
         commands.slice(since),
         ALL_CHEATS.map((cheat) => [cheat, false])
@@ -311,7 +316,6 @@ const pickRow = (name) => row(shops, name);
 // The open world's items (W1, the first tab): what Enable all and Disable all cover.
 const w1Items = () => byClass(byClass(shops, "automation-rows")[0], "automation-pick").length;
 // Shops' Disable all asks in its tray; this answers the question.
-const answerYes = (root) => byClass(root, "tabbed-list__yes")[0].listeners.click({});
 const saved = () => updates.at(-1)?.cheatConfig.automation.shops ?? [];
 const field = (name) =>
     elements(pickRow(name)).find((node) => node.nodeName === "input" && node.attributes.type !== "checkbox");
@@ -758,9 +762,8 @@ test("review 3 sibling: the overview's Disable all stops every automation, even 
     await button(overview, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => row(overview, "Test kit") && button(overview, "Disable all"), "both rows and Disable all");
     failSave = true;
-    const disable = button(overview, "Disable all");
-    await disable.listeners.click({ preventDefault() {} });
-    await disable.listeners.click({ preventDefault() {} });
+    await button(overview, "Disable all").listeners.click({ preventDefault() {} });
+    await answerYes(overview);
     await until(() => /disk is full/.test(text(overview)), "the failure to be said");
     failSave = false;
     const on = () =>
@@ -772,6 +775,28 @@ test("review 3 sibling: the overview's Disable all stops every automation, even 
         () => `every automation to stop, not ${on()}`
     );
     switchAutomation("test.kit", false);
+});
+
+// PR #323 review: a switch flipped on while Disable all asked was stopped too, without a question.
+test("review: a switch flipped while the overview's Disable all asks makes it ask again", async () => {
+    await testKit();
+    switchAutomation("account.automation.shops", true);
+    switchAutomation("test.kit", false);
+    fileStartup = ["automation shops"];
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => row(overview, "Test kit") && button(overview, "Disable all"), "both rows and Disable all");
+    await button(overview, "Disable all").listeners.click({ preventDefault() {} });
+    await settle();
+    assert.ok(text(overview).includes("Disable 1 automation, now and at start?"));
+    const since = commands.length;
+    // Shown at once, before its step and the page's read after it end.
+    void checkbox(row(overview, "Test kit")).listeners.change({ target: { checked: true } });
+    await answerYes(overview);
+    await settle();
+    assert.ok(text(overview).includes("Disable 2 automations, now and at start?"), "it asks again");
+    assert.ok(!commands.slice(since).some(([, on]) => on === false), "nothing stopped yet");
+    await answerYes(overview);
+    await until(() => !getAutomations().some(({ on }) => on), "both to stop");
 });
 
 // A second reader's review of 99dacf9: each sequence it reproduced.
@@ -1380,10 +1405,9 @@ test("round 5 sweep: the overview's Disable all shows what the game answered whe
     await ui.switchAutomation("automation shops", true);
     await button(overview, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => statusOf(overview) !== "Off" && button(overview, "Disable all"), "the overview to read Shops on");
-    const disable = button(overview, "Disable all");
-    await disable.listeners.click({ preventDefault() {} });
+    await button(overview, "Disable all").listeners.click({ preventDefault() {} });
     failListReadAt = listAsked + 2; // the bulk switch's own read works; the page's read after it fails
-    await disable.listeners.click({ preventDefault() {} });
+    await answerYes(overview);
     await until(() => !shopsOn() && listAnswered >= failListReadAt, "the switch and the failed read");
     await queueIdle();
     failListReadAt = null;

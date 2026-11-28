@@ -1,0 +1,15 @@
+/*
+ * Automation › Sushi Station: where the automation lists fold (a phone, and up to 1023px with the sidebar), a setting's
+ * field or switch goes under its name like every automation setting's. Each row holds one setting, so the field doesn't
+ * say its name again: the name is right above it.
+ */
+@media (max-width: 1023px) {
+    .viewport .automation-rows.sushi-settings .value-cell__label {
+        display: none;
+    }
+}
+
+/* Why the last press or read didn't work, in Auto Play's line in place of the game's words. */
+.viewport .sushi-settings .automation-row__status.is-failed {
+    color: var(--c-danger-soft-text);
+}

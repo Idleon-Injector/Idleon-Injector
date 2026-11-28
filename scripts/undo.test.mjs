@@ -284,7 +284,7 @@ test("an undo for a character whose saved entry is now in play goes to its live 
 });
 
 test("History lists the actions newest first, grouped, with old → new and Undo", async () => {
-    const { History } = await importRepo("src/ui/components/views/History.js");
+    const { History, readable } = await importRepo("src/ui/components/views/History.js");
     store.app.activeTab = "history-tab";
     const root = History();
     const { actions } = await fetchChanges();
@@ -300,13 +300,13 @@ test("History lists the actions newest first, grouped, with old → new and Undo
     );
     groups.forEach((group, i) => {
         const [entry] = actions[i].entries;
-        const after = typeof entry.after === "number" ? String(entry.after) : JSON.stringify(entry.after).slice(0, 27);
+        const after = readable(entry.after).text;
         assert.ok(text(group).includes(entry.path) && text(group).includes(after), `group ${i} shows action ${i}`);
     });
     assert.match(text(groups[0]), /Player/);
     const bulk = groups.find((group) => /CauldronInfo\[4\]/.test(text(group)));
     assert.match(text(bulk), /values/);
-    assert.match(text(bulk), /undone/);
+    assert.match(text(bulk), /undone/i);
     const refused = groups.find((group) => /OptionsListAccount\[254\]/.test(text(group)) && /31/.test(text(group)));
     assert.match(text(refused), /31/);
     assert.match(text(refused), /→/);
@@ -609,6 +609,43 @@ test("History shows the newest read of the log when two overlap", async () => {
     } finally {
         globalThis.fetch = realFetch;
         release();
+    }
+});
+
+// Coordinator's look at #323: "Exalt all" showed the game's raw list on its line (["_1","a0","b4"] → ["_0",…).
+test("History says a plain value's change on its line, and a list's only by its size when opened", async () => {
+    const { History } = await importRepo("src/ui/components/views/History.js");
+    const entry = (path, before, after) => ({ path, before, hasBefore: true, after, character: null, live: false });
+    const actions = [
+        {
+            id: "list",
+            page: "Stamps",
+            label: "Exalt all",
+            time: 2,
+            entries: [entry("Compass[4]", ["_1", "a0"], ["_0", "_1", "_2"])],
+        },
+        { id: "word", page: "Pets", label: "Tier", time: 1, entries: [entry("Pets[3]", "Normal", "Pets+")] },
+        { id: "number", page: "Stamps", label: "Level", time: 0, entries: [entry("StampLevel[0][1]", 8, 7)] },
+    ];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options = {}) =>
+        String(url).endsWith("/api/changes") && !options.method
+            ? new Response(JSON.stringify({ actions }), { headers: { "content-type": "application/json" } })
+            : realFetch(url, options);
+    try {
+        store.app.activeTab = "history-tab";
+        const root = History();
+        await until(() => byClass(root, "change-group").length === 3, "History to list the three actions");
+        const [list, word, number] = byClass(root, "change-group");
+        const line = (group) => text(byClass(group, "change-group__change")[0]);
+        assert.equal(line(list), "", "a list says nothing on its line");
+        assert.equal(line(word), "Normal→Pets+");
+        assert.equal(line(number), "8→7");
+        const opened = text(byClass(list, "change-group__open")[0]);
+        assert.match(opened, /2 items→3 items/);
+        assert.doesNotMatch(opened, /"_1"|\["/, "no raw game data");
+    } finally {
+        globalThis.fetch = realFetch;
     }
 });
 
