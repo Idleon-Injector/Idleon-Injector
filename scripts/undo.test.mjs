@@ -306,7 +306,7 @@ test("History lists the actions newest first, grouped, with old → new and Undo
     assert.match(text(groups[0]), /Player/);
     const bulk = groups.find((group) => /CauldronInfo\[4\]/.test(text(group)));
     assert.match(text(bulk), /values/);
-    assert.match(text(bulk), /undone/);
+    assert.match(text(bulk), /undone/i);
     const refused = groups.find((group) => /OptionsListAccount\[254\]/.test(text(group)) && /31/.test(text(group)));
     assert.match(text(refused), /31/);
     assert.match(text(refused), /→/);

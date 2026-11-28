@@ -22,16 +22,8 @@ export const ON_STANDARDS = [
     "world-7/",
     "classes/",
     "account/",
-    // The automation pages that were on them before they moved into the Automation section (#249), and the
-    // Masterclasses' (Grimoire's was on them with the Classes pages, #239). Overview and Sushi Station aren't yet.
-    "automation/alchemy/",
-    "automation/construction/",
-    "automation/cooking/",
-    "automation/sneaking/",
-    "automation/summoning/",
-    "automation/clickers/",
-    "automation/shops/",
-    "automation/masterclasses/",
+    // Every Automation page (Overview and Sushi Station were the last on the old look).
+    "automation/",
 ];
 
 /**

@@ -258,18 +258,22 @@ test("Sushi Tools: Refresh during a settings save keeps the typed setting, and t
     leave(section, tier);
     await buttonNamed(root, "Refresh").listeners.click({ preventDefault() {} });
     release();
-    await until(() => text(byClass(root, "save-state__label")[0]) === "saved", "the settings to save");
+    // Each setting says its own save on its row.
+    const saidOn = (input) => {
+        let row = input;
+        while (!byClass(row, "save-state__label").length) row = row.parentNode;
+        return text(byClass(row, "save-state__label")[0]);
+    };
+    await until(() => saidOn(tier) === "saved", "the settings to save");
     assert.equal(await savedTier(), next);
     assert.equal(tier.attributes.value, String(next), "the field keeps the saved setting");
 
-    const chain = inputs(
-        elements(root).find((node) => node.nodeName === "label" && text(node).includes("Extended"))
-    )[0];
+    const chain = field("Extended East Wind chain");
     const releaseToggle = hold("/config/save");
     chain.listeners.change({ target: { checked: !chain.attributes.checked } });
-    await until(() => text(byClass(root, "save-state__label")[0]) === "saving…", "the toggle to save");
+    await until(() => saidOn(chain) === "saving…", "the toggle to save");
     releaseToggle();
-    await until(() => text(byClass(root, "save-state__label")[0]) === "saved", "the toggle save to finish");
+    await until(() => saidOn(chain) === "saved", "the toggle save to finish");
     assert.equal(await savedTier(), next, "the toggle's save keeps the tier");
 });
 

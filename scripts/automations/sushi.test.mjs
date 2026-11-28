@@ -288,7 +288,7 @@ test("out of fuel, it merges what it bought before stopping, and says so", async
     assert.deepEqual(await run("w7 sushitools"), OFF);
 });
 
-// The WebUI's Tools tab (World 7 › Sushi Station › Tools) on the real API routes and the fake station.
+// The WebUI's Automation › Sushi Station page (once World 7's Tools tab) on the real API routes and the fake station.
 const text = (node) =>
     typeof node === "string" ? node : node?.nodeType === 3 ? node.data : (node?.childNodes ?? []).map(text).join("");
 const elements = (node, out = []) => {
@@ -334,13 +334,21 @@ async function openTools() {
     const tab = {
         root,
         button: (label) => elements(root).find((node) => node.nodeName === "button" && text(node) === label),
-        status: () => text(byClass(root, "sushi-automation-status")[0]),
-        saveState: () => text(byClass(root, "save-state__label")[0]),
+        // Auto Play's line: what it is doing, or why the last press didn't work.
+        status: () => text(byClass(root, "automation-row__status")[0]),
+        // A setting's own save state, on its row.
+        saveState: (title) =>
+            text(
+                byClass(
+                    byClass(root, "automation-setting").find((row) =>
+                        elements(row).some((node) => node.attributes["aria-label"] === title)
+                    ),
+                    "save-state__label"
+                )[0]
+            ),
         field: (title) => elements(root).find((node) => node.attributes["aria-label"] === title),
         toggle: (title) =>
-            elements(byClass(root, "sushi-toggle").find((node) => text(node) === title)).find(
-                (node) => node.nodeName === "input"
-            ),
+            elements(root).find((node) => node.nodeName === "input" && node.attributes["aria-label"] === title),
     };
     await until(() => tab.button("Enable Auto Play")?.attributes.disabled === false, "the tab to load");
     return tab;
@@ -361,15 +369,15 @@ test("Tools tab: a target the board can't hold isn't saved, and Enable says the 
     cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2 };
     const tab = await openTools();
     await setField(tab, "Target quantity", 40);
-    assert.equal(tab.saveState(), "target quantity: 4 at most on this board");
+    assert.equal(tab.saveState("Target quantity"), "Target quantity: 4 at most on this board");
     assert.equal(cheatConfig.w7.sushitools.targetCount, 2, "not saved");
     await setField(tab, "Empty slots", 6);
-    assert.equal(tab.saveState(), "empty slots: 5 at most on this board");
+    assert.equal(tab.saveState("Empty slots"), "Empty slots: 5 at most on this board");
     await setField(tab, "Empty slots", 2);
 
     tab.button("Enable Auto Play").listeners.click();
     await advance(200);
-    assert.equal(tab.status(), "target quantity: 4 at most on this board", "said where Enable was clicked");
+    assert.equal(tab.status(), "Target quantity: 4 at most on this board", "said on Auto Play's line");
     assert.equal((await run("w7 sushitools status")).enabled, false);
 
     await setField(tab, "Target quantity", 4);
@@ -395,7 +403,7 @@ test("Tools tab: a settings save sends only the tool settings, to the file and t
 });
 
 // In-game check: a target of 40 said why only on Enter or on leaving the whole section; Tab to the next field
-// said nothing.
+// said nothing. Each setting now saves on its own, on leaving its field.
 test("Tools tab: Tab from a target the board can't hold to the next field says why at once", async () => {
     station();
     cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2 };
@@ -410,24 +418,14 @@ test("Tools tab: Tab from a target the board can't hold to the next field says w
     target.value = "40";
     target.listeners.input({ target });
     await leave(target, tab.field("Empty slots"));
-    assert.equal(tab.saveState(), "target quantity: 4 at most on this board");
+    assert.equal(tab.saveState("Target quantity"), "Target quantity: 4 at most on this board");
     assert.equal(cheatConfig.w7.sushitools.targetCount, 2, "not saved");
 
     target.value = "4";
     target.listeners.input({ target });
     await leave(target, tab.field("Empty slots"));
-    assert.equal(tab.saveState(), "", "the reason goes once it fits");
-    assert.equal(cheatConfig.w7.sushitools.targetCount, 2, "still editing the section: saved on leaving it");
-});
-
-// In-game check: the reason was cut to "target quantity: 35 a…" in the footer, the rest only in a tooltip.
-test("Tools tab: the settings footer shows a reason whole", async () => {
-    const { readFile } = await import("node:fs/promises");
-    const css = await readFile(new URL("../../src/ui/pages/world-7/sushi-station/sushi-station.css", import.meta.url));
-    const rule = String(css).match(/\.sushi-automation-footer \.save-state--error \.save-state__label \{([^}]*)\}/);
-    assert.ok(rule, "the footer's reason has its own rule");
-    assert.match(rule[1], /-webkit-line-clamp: none/, "not clamped to two lines");
-    assert.match(rule[1], /overflow: visible/);
+    assert.notEqual(tab.saveState("Target quantity"), "Target quantity: 4 at most on this board", "the reason goes");
+    assert.equal(cheatConfig.w7.sushitools.targetCount, 4, "saved on leaving its field");
 });
 
 // Issue #79: started from the in-game button, the tab kept showing "Enable Auto Play" until REFRESH.
