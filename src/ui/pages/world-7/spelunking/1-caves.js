@@ -45,7 +45,7 @@ const DISCOVERED_OBJECTS_PATH = "Spelunk[6]";
 const CAVE_METRICS = [
     { key: "deepest", label: "Deepest", path: "Spelunk[1]" },
     { key: "manicDeepest", label: "Manic deepest", path: "Spelunk[47]" },
-    { key: "haul", label: "Biggest haul", path: "Spelunk[2]", formatted: true },
+    { key: "haul", label: "Biggest haul", path: "Spelunk[2]", formatted: true, float: true },
     { key: "discoveries", label: "Grand discoveries", path: "Spelunk[44]", max: 10 },
 ];
 const readMetric = (metric, raw) =>
@@ -152,6 +152,10 @@ function SpelunkingCavesTab() {
                 .filter((id) => !known.has(id))
                 .map((id) => ({ objectId: id, name: cleanName(id, id), caveName: "Other", known: false })),
         ];
+        // A row whose object left the list is made again if it comes back (an undo): VanJS drops a detached row's
+        // bindings.
+        const ids = new Set(next.map((object) => object.objectId));
+        for (const id of rowOf.keys()) if (!ids.has(id)) rowOf.delete(id);
         for (const object of next)
             if (!rowOf.has(object.objectId))
                 rowOf.set(
@@ -207,9 +211,12 @@ function SpelunkingCavesTab() {
         });
 
     // Edits start from the game's list as it is now, not the page's last read: the game adds to it as objects are
-    // destroyed. Whatever happens, the page then shows the list the game holds.
-    const change = (edit) =>
-        inTurn(async () => {
+    // destroyed. Whatever happens, the page then shows the list the game holds. `changing` counts the ones asked for
+    // and not ended yet, so Add all stays pressable while a switch-off waits.
+    const changing = van.state(0);
+    const change = (edit) => {
+        changing.val++;
+        return inTurn(async () => {
             try {
                 return (await edit(normalizeStoredNames(await gga(DISCOVERED_OBJECTS_PATH)))) ?? { ok: true };
             } finally {
@@ -219,14 +226,16 @@ function SpelunkingCavesTab() {
                     // ponytail: the picture stays as it was; the next change reads the game again before it writes.
                 }
             }
-        });
+        }).finally(() => changing.val--);
+    };
 
     const addObjects = (objectIds) =>
         change(async (currentNames) => {
             const toAdd = objectIds.filter((objectId) => !currentNames.includes(objectId));
             if (toAdd.length === 0) return { cancelled: true };
-            // The whole list in one write, so Undo has the list as it was.
-            await writeVerified(DISCOVERED_OBJECTS_PATH, [...currentNames, ...toAdd]);
+            // The whole list in one write, so Undo has the list as it was. The page shows the list the write read
+            // back, until the read after it shows the game's.
+            applyDiscovered(await writeVerified(DISCOVERED_OBJECTS_PATH, [...currentNames, ...toAdd]));
             return { ok: true };
         });
 
@@ -234,9 +243,11 @@ function SpelunkingCavesTab() {
         change(async (currentNames) => {
             const index = currentNames.indexOf(objectId);
             if (index < 0) return { cancelled: true };
-            await writeVerified(
-                DISCOVERED_OBJECTS_PATH,
-                currentNames.filter((_, other) => other !== index)
+            applyDiscovered(
+                await writeVerified(
+                    DISCOVERED_OBJECTS_PATH,
+                    currentNames.filter((_, other) => other !== index)
+                )
             );
             return { ok: true };
         });
@@ -270,10 +281,14 @@ function SpelunkingCavesTab() {
                         ActionButton({
                             label: "Add all",
                             status: bulk.status,
-                            disabled: () => loading.val || !missing().length,
+                            disabled: () => loading.val || (!missing().length && !changing.val),
                             onClick: (e) => {
                                 e.preventDefault();
-                                const ids = missing().map((object) => object.objectId);
+                                // Every known object shown: its turn adds the ones the game's list lacks then, so a
+                                // switch-off still saving when this was pressed is discovered again too.
+                                const ids = shown()
+                                    .filter((object) => object.known)
+                                    .map((object) => object.objectId);
                                 return bulk.run(() => addObjects(ids));
                             },
                         })

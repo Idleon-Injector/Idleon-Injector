@@ -1,11 +1,13 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { NumberInput, setNumberInputValue } from "../../NumberInput.js";
+import { formattedStep } from "../../../utils/numberFormat.js";
 import {
     adjustFormattedIntInput,
     joinClasses,
     largeFormatter,
     largeParser,
     resolveFormattedIntInput,
+    resolveNumberInput,
     resolveValue,
     toInt,
     toNodes,
@@ -219,9 +221,15 @@ export const ValueTableRow = ({
                     next[field.key] = stored;
                     continue;
                 }
-                const typed = field.formatted ? resolveFormattedIntInput(draft, null) : Number(draft);
+                // A field's `min` (Sushi's Locked -1) is its lowest, 0 by default; a `float` field keeps its decimals.
+                const min = field.min ?? 0;
+                const typed = field.float
+                    ? resolveNumberInput(draft, { formatted: field.formatted, float: true, min, fallback: null })
+                    : field.formatted
+                      ? resolveFormattedIntInput(draft, null, { min })
+                      : Number(draft);
                 if (typed === null || !Number.isFinite(Number(typed))) return null;
-                const value = toInt(typed, { min: 0 });
+                const value = field.float ? typed : toInt(typed, { min });
                 // Above the cap only when it comes down from a value the game holds above it.
                 next[field.key] =
                     value > maxOf(field) && value < Number(field.valueState.val)
@@ -248,7 +256,7 @@ export const ValueTableRow = ({
                                 StepPicker({
                                     name: `${name} ${field.label.toLowerCase()}`,
                                     steps: field.steps,
-                                    picked: () => toInt(draftStates[field.key].val, { min: 0 }),
+                                    picked: () => toInt(draftStates[field.key].val, { min: field.min ?? 0 }),
                                     onPick: (value) => void applyValue({ [field.key]: value }),
                                 })
                             )
@@ -261,10 +269,24 @@ export const ValueTableRow = ({
                                         : "value-cell column--field",
                                     labelClass: "value-cell__label",
                                     formatted: field.formatted,
+                                    float: field.float,
                                     // + leaves a value the game holds above the cap; − takes one off it.
                                     adjustDraft: (raw, delta) => {
                                         // A blank `toDraft` box (an Empty node) is already the lowest: − leaves it.
                                         if (field.toDraft && delta < 0 && String(raw ?? "").trim() === "") return "";
+                                        // A `float` field keeps its decimals: 12.5 steps to 13.5.
+                                        if (field.float) {
+                                            const min = field.min ?? 0;
+                                            const value =
+                                                resolveNumberInput(raw, {
+                                                    formatted: field.formatted,
+                                                    float: true,
+                                                    min,
+                                                    fallback: min,
+                                                }) ?? min;
+                                            const step = field.formatted ? formattedStep(value) : 1;
+                                            return Math.max(min, Math.min(maxOf(field), value + delta * step));
+                                        }
                                         if (field.formatted) return adjustFormattedIntInput(raw, delta, 0, { min: 0 });
                                         const value = toInt(raw, { min: 0 });
                                         if (value > maxOf(field)) return delta > 0 ? value : value - 1;
@@ -301,7 +323,7 @@ export const ValueTableRow = ({
                 const line = lineField();
                 return line.max !== undefined && maxOf(line) < Infinity ? maxOf(line) : null;
             },
-            min: () => 0,
+            min: () => lineField().min ?? 0,
             // One place, saved for no one character and with nothing to run after: it goes in Set all's one write.
             path: () => {
                 const line = lineField();

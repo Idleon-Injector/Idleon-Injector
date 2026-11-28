@@ -109,6 +109,7 @@ export const announce = (text) => {
 };
 
 const armed = new WeakMap();
+const repeatGuarded = new WeakSet();
 /** Forget `button`'s question, if it asked one: the press it was about no longer needs asking. */
 export const disarm = (button) => {
     const state = armed.get(button);
@@ -129,6 +130,14 @@ export const disarm = (button) => {
  * ids the question doesn't name) changed meanwhile, the button asks again instead.
  */
 export const clickAgain = (button, question, { targets = null, ms = 4000 } = {}) => {
+    // A held Enter repeats the click: from the first press on, its repeats are let go, so each arm and each run needs
+    // a press of its own (one held key can't arm a dangerous command and run it, again and again).
+    if (!repeatGuarded.has(button)) {
+        repeatGuarded.add(button);
+        button.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && e.repeat) e.preventDefault();
+        });
+    }
     const state = armed.get(button);
     const touches = JSON.stringify(targets);
     if (state && state.question === question && state.touches === touches) {
