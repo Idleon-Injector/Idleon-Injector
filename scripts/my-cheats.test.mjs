@@ -18,6 +18,16 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
     }
     return save(req, res);
 });
+// The next `failReads` reads of the config fail, as when the injector can't be reached.
+let failReads = 0;
+const read = router.routes.GET.get("/api/config");
+router.routes.GET.set("/api/config", async (req, res) => {
+    if (failReads > 0) {
+        failReads--;
+        return res.status(500).json({ error: "The injector can't be reached" });
+    }
+    return read(req, res);
+});
 const { store } = await loadUi(router);
 // The pins and My cheats read the config again when the window comes back.
 globalThis.window = { addEventListener() {} };
@@ -123,6 +133,19 @@ test("a pin whose save fails goes back to the file's state and says so; the next
     press(tagOf(ON, "pin"));
     await until(() => tagOf(ON, "pin").attributes["aria-pressed"] === "true" && said() === "", "the retry to save");
     assert.deepEqual((await file()).pins, [ON]);
+});
+
+test("a pin that can't be saved or read back goes back to what the file last said", async () => {
+    await reset();
+    failReads = 10; // the save's own read fails, and so does the read after it
+    const saved = setPinned(OFF, true).then(
+        () => "saved",
+        () => "failed"
+    );
+    assert.equal(isPinned(OFF), true, "the press shows at once");
+    assert.equal(await saved, "failed");
+    assert.equal(isPinned(OFF), false, "back to the file's pins");
+    failReads = 0;
 });
 
 test("quick presses on a pin end as the last press, in the file and on the tag", async () => {

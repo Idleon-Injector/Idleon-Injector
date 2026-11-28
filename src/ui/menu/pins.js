@@ -20,9 +20,12 @@ export const isPinned = (cheat) => pins.val.includes(cheat);
 
 // Saves sent and not answered yet: while any runs, a read doesn't put back what the presses changed.
 let saving = 0;
+// The pins as the file last said, to go back to when a save fails and the file can't be read either.
+let confirmed = [];
 /** Take the pins from a config read (My cheats reads the file for the startup cheats too). */
 export const takePins = (file) => {
-    if (!saving) pins.val = pinsOf(file);
+    confirmed = pinsOf(file);
+    if (!saving) pins.val = confirmed;
 };
 const loadPins = () =>
     fetchConfig()
@@ -41,10 +44,14 @@ export const setPinned = (cheat, on) => {
         return { injectorConfig: { pinnedCheats: on ? [...others, cheat] : others } };
     }).then(
         ({ config }) => {
-            if (--saving === 0) pins.val = pinsOf(config);
+            confirmed = pinsOf(config);
+            if (--saving === 0) pins.val = confirmed;
         },
         async (error) => {
-            if (--saving === 0) await loadPins();
+            if (--saving === 0) {
+                pins.val = confirmed;
+                await loadPins();
+            }
             throw error;
         }
     );

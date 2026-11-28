@@ -235,7 +235,9 @@ export const MyCheats = (side) => {
             id: "my-cheats",
             class: () => `system-cheats my-cheats ${side.val ? "is-side" : "is-folded"}${open.val ? " is-open" : ""}`,
             "aria-label": "My cheats",
-            onpointerleave: letGo,
+            // Not while a control in it has keyboard focus: its row would go with the focus (focus-out lets it go).
+            onpointerleave: () =>
+                (panel.contains(document.activeElement) && document.activeElement.matches(":focus-visible")) || letGo(),
             // A switch flipped off here keeps its row until the pointer leaves.
             onchange: (e) =>
                 e.target.matches("[role=switch]") && linger(e.target.closest("[data-cheat]")?.dataset.cheat),
