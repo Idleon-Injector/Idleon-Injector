@@ -91,11 +91,12 @@ function SushiAutomation() {
         }
     }
 
-    // The saved settings with `keys` as the page shows them; throws a short reason for one of those that can't be. Only
-    // the numbers being saved are checked, so a saved one the board no longer allows doesn't hold back another's save.
-    const draftWith = (keys) => {
-        const draft = { ...saved };
-        for (const key of keys) draft[key] = settings[key].val;
+    // The saved settings (`base`) with `keys` as the page shows them (or as `typed` gives them); throws a short reason
+    // for one of those that can't be. Only the numbers being saved are checked, so a saved one the board no longer allows
+    // doesn't hold back another's save.
+    const draftWith = (keys, base = saved, typed = (key) => settings[key].val) => {
+        const draft = { ...base };
+        for (const key of keys) draft[key] = typed(key);
         const max = {
             tier: state.val.maxPurchaseTier,
             targetTier: state.val.maxTier + 1,
@@ -119,8 +120,13 @@ function SushiAutomation() {
         return Object.fromEntries(Object.keys(settings).map((key) => [key, draft[key]]));
     };
     const same = (draft) => Object.keys(settings).every((key) => draft[key] === saved[key]);
-    async function saveSettings(draft) {
-        const { result, config } = await saveConfigPart(() => ({ cheatConfig: { w7: { sushitools: draft } } }));
+    // `recheck(held)`, when given, checks the save again against the settings the file holds when its turn comes, so
+    // two rows saved at once can't leave a pair that doesn't fit the board (#323 review).
+    async function saveSettings(draft, recheck = null) {
+        const { result, config } = await saveConfigPart((now) => {
+            recheck?.(now.cheatConfig.w7.sushitools);
+            return { cheatConfig: { w7: { sushitools: draft } } };
+        });
         remember(config);
         if (result.message.includes("kept its old settings"))
             throw new Error("Saved, but the running game kept its old settings");
@@ -174,7 +180,10 @@ function SushiAutomation() {
                 const typed = value.val;
                 // Only this setting goes: another row's save still running keeps its own value (#323 review).
                 return {
-                    write: () => saveSettings({ [key]: draft[key] }).then(() => value.val === typed && show(key)),
+                    write: () =>
+                        saveSettings({ [key]: draft[key] }, (held) => draftWith([key], held, () => draft[key])).then(
+                            () => value.val === typed && show(key)
+                        ),
                 };
             },
             // Escape: the saved number comes back.

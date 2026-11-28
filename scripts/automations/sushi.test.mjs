@@ -502,6 +502,22 @@ test("Tools tab: two settings saved at once both reach the file", async () => {
     assert.equal(cheatConfig.w7.sushitools.targetCount, 3);
 });
 
+// PR #323 review: two rows saved at once could leave a pair the board can't hold, each checked against the old other.
+test("Tools tab: a setting saved behind another is checked against it, so the pair still fits the board", async () => {
+    station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2 };
+    const tab = await openTools();
+    const saves = holdNext((url) => url.endsWith("/config/save"), "before");
+    void setField(tab, "Target quantity", 4);
+    await until(() => saves.started, "the first save to reach the file");
+    await setField(tab, "Empty slots", 3);
+    saves.release();
+    await advance(400);
+    assert.equal(cheatConfig.w7.sushitools.targetCount, 4);
+    assert.equal(cheatConfig.w7.sushitools.reserveSlots, 2, "3 empty slots don't fit beside 4 targets");
+    assert.equal(tab.saveState("Empty slots"), "Target quantity: 3 at most on this board");
+});
+
 // PR #86 review: two quick flips of "Show in-game buttons" saved at once, and the older save could land last.
 test("Tools tab: quick flips of Show in-game buttons save one after another, so the file keeps the last choice", async () => {
     station();
