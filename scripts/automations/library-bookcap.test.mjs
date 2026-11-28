@@ -1,4 +1,4 @@
-// "w3 maxbooks" (#311): Lumi asked for the Library's Max books "for all characters all the time": while it is on, every
+// "w3 bookcap" (#311): Lumi asked for the Library's Max books "for all characters all the time": while it is on, every
 // character's talent books are raised to the book cap, the character in play's in its live SkillLevelsMAX and the
 // others' in their PlayerDATABASE entry, and they follow the cap when it rises. Locked talents (-1), the special
 // talents, the talents the Library has no book for, and books at or above the cap are never written.
@@ -9,7 +9,7 @@ import { loadGame } from "../known-bugs/index.mjs";
 mock.timers.enable({ apis: ["setInterval"] });
 const { gga, context, cheat } = await loadGame();
 
-const CHEAT = "w3 maxbooks";
+const CHEAT = "w3 bookcap";
 const SPECIAL = 620; // a special talent: on no class page
 let cap = 150;
 let scene = "Town";
@@ -66,7 +66,7 @@ test("books under the cap rise to it, for the character in play and the others; 
     setGame();
     assert.deepEqual(await cheat(CHEAT), {
         ok: true,
-        message: `Activated keep every character's talent books at the book cap.`,
+        message: `Activated raise talents to book cap.`,
     });
     tick();
     const ann = ["Ann[1]=150", ...[5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((t) => `Ann[${t}]=150`)];

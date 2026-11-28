@@ -79,7 +79,7 @@ export const PAGE_CHEATS = {
     "3:Library": [
         { cheat: "w3 booktime", label: "Faster books" },
         { cheat: "w3 book", label: "Talent books at max level" },
-        { cheat: "w3 maxbooks", label: "Max books on every character" },
+        { cheat: "w3 bookcap", label: "Raise talents to book cap" },
     ],
     "3:Prayers": [{ cheat: "w3 prayer", label: "No prayer curses" }],
     "3:Equinox": [{ cheat: "w3 instantdreams", label: "Dream bar fills at once" }],

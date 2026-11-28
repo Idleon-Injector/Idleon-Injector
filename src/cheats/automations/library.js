@@ -1,5 +1,5 @@
 /**
- * Max books, always (#311): while "w3 maxbooks" is on, every character's talent books stay at the book cap, what the
+ * Max books, always (#311): while "w3 bookcap" is on, every character's talent books stay at the book cap, what the
  * Library page's Max books sets them to, and follow it when it rises.
  *
  * Books are the talents of a character's class pages, less the ones the Library has no book for (RANDOlist[16]); the
@@ -29,8 +29,8 @@ const classPages = (classId) => {
 let status = "";
 
 defineAutomation({
-    id: "w3.maxbooks",
-    cheat: "w3 maxbooks",
+    id: "w3.bookcap",
+    cheat: "w3 bookcap",
     interval: 2000,
     tick() {
         let active;
