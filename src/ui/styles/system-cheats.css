@@ -212,8 +212,8 @@
     flex: none;
     flex-wrap: nowrap;
 }
-/* The panel's field: room for a setting's few digits and its − / +, so the names keep the width. Its number starts
-   right after the sign, so the two read as one value. */
+/* The panel's field: room for a setting's few digits and its − / +, so the names keep the width. Its number sits in
+   the middle of its line, as on the pages' rows (Lumi); the sign stays right before the line. */
 .viewport .system-cheats .system-cheats__setting .number-input-wrapper:not(.number-input-wrapper--capped) {
     flex: none;
     width: 6.5rem;
@@ -221,7 +221,7 @@
 }
 .viewport.viewport .system-cheats .system-cheats__setting .account-row__controls .number-input-wrapper input {
     padding-left: 6px;
-    text-align: left;
+    text-align: center;
 }
 @media (hover: hover) {
     .viewport .system-cheats .system-cheats__setting:not(:hover):not(:focus-within) .number-input-wrapper::after {
