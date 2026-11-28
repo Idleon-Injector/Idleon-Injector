@@ -26,20 +26,26 @@ export const DevTools = () => {
     }
 
     // Each press starts clean, and only the latest press says why it failed: an older one answering late stays quiet.
+    // Screen readers hear the wait and the outcome too (`said`); a failure is the alert under the buttons.
+    const said = van.state("");
     let presses = 0;
-    const press = async (open, failure) => {
+    const press = async (open, name) => {
         const mine = ++presses;
         error.val = "";
+        said.val = `Opening ${name}…`;
         try {
             await open();
+            if (mine === presses) said.val = `Opened ${name} in its own window.`;
         } catch (e) {
-            if (mine === presses) error.val = `${failure}: ${e.message}`;
+            if (mine !== presses) return;
+            said.val = "";
+            error.val = `Couldn't open ${name}: ${e.message}`;
         }
     };
     const openUrl = (target) =>
         IS_ELECTRON ? API.openExternalUrl(target) : window.open(target, "_blank", "noopener,noreferrer");
-    const openDevTools = () => press(async () => openUrl(await API.fetchDevToolsUrl()), "Couldn't open DevTools");
-    const openWebUi = () => press(() => openUrl(webUiUrl), "Couldn't open the Web UI");
+    const openDevTools = () => press(async () => openUrl(await API.fetchDevToolsUrl()), "DevTools");
+    const openWebUi = () => press(() => openUrl(webUiUrl), "the Web UI");
 
     // Inside the game DevTools would crash it, so it opens in a window of its own.
     const renderEmbeddedView = () =>
@@ -51,7 +57,8 @@ export const DevTools = () => {
                 button({ type: "button", class: "btn-main", onclick: openDevTools }, "Open DevTools"),
                 button({ type: "button", class: "btn-quiet", onclick: openWebUi }, "Open Web UI")
             ),
-            p({ class: "devtools-away__error", role: "alert", hidden: () => !error.val }, () => error.val)
+            p({ class: "devtools-away__error", role: "alert", hidden: () => !error.val }, () => error.val),
+            p({ class: "account-write-feedback", role: "status" }, () => said.val)
         );
 
     const renderContent = () => {
