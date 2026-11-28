@@ -154,6 +154,7 @@ defineCheat({
         { name: "refineryspeed", message: "reduces refinery time (see config)" },
         { name: "trapping", message: "multiply trapping time, make the traps faster by adding more time" },
         { name: "book", message: "always max lvl talent book" },
+        { name: "bookcap", message: "raise talents to book cap" },
         { name: "prayer", message: "Prayer curse nullification" },
         { name: "worshipspeed", message: "multiply worship charge speed (see config)" },
         { name: "freeworship", message: "reduce worship charge cost to the minimum" },
