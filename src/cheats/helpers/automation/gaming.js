@@ -99,7 +99,8 @@ function trigger(station, text, method) {
 
 /**
  * A full garden: every plot holds a plant. Plants of a type the player locked on the Mutation tab
- * (OptionsListAccount[583 + type − 2]) stay, as the game's own Harvest All leaves them.
+ * (OptionsListAccount[583 + max(0, type − 2)], the game's own slot for it, so types 1 and 2 share 583) stay, as the
+ * game's own Harvest All leaves them.
  */
 function harvest(station) {
     const plots = gga.GamingSprout.slice(0, gaming("SproutCapacity"));

@@ -25,9 +25,9 @@ defineHook(
 
 // w5 betternuggets: a dug nugget is worth bonus / roll^0.64, its roll randomFloatBetween(1E-5, 1), the game's only call
 // with those bounds. Raising the roll's place in that range to the configured power leans it low, so nuggets come out
-// bigger, still within the game's own range.
+// bigger, still within the game's own range. A roll the rng cheat forces stays as it was set.
 defineHook({ id: "w5.betternuggets", target: () => behavior, method: "randomFloatBetween" }, (base, min, max) => {
-    if (!cheatState.w5.betternuggets || min !== 1e-5 || max !== 1) return base;
+    if (!cheatState.w5.betternuggets || cheatState.rng || min !== 1e-5 || max !== 1) return base;
     return min + (max - min) * ((base - min) / (max - min)) ** cheatConfig.w5.betternuggets;
 });
 
