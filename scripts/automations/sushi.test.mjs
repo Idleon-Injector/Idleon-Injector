@@ -487,6 +487,21 @@ function holdNext(match, at) {
     return held;
 }
 
+// PR #323 review: each setting saves on its own, so two rows saving at once both keep their value.
+test("Tools tab: two settings saved at once both reach the file", async () => {
+    station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2, tier: 1 };
+    const tab = await openTools();
+    const saves = holdNext((url) => url.endsWith("/config/save"), "before");
+    void setField(tab, "Purchase tier", 2);
+    await until(() => saves.started, "the first save to reach the file");
+    await setField(tab, "Target quantity", 3);
+    saves.release();
+    await advance(400);
+    assert.equal(cheatConfig.w7.sushitools.tier, 2, "the first row's value stays");
+    assert.equal(cheatConfig.w7.sushitools.targetCount, 3);
+});
+
 // PR #86 review: two quick flips of "Show in-game buttons" saved at once, and the older save could land last.
 test("Tools tab: quick flips of Show in-game buttons save one after another, so the file keeps the last choice", async () => {
     station();

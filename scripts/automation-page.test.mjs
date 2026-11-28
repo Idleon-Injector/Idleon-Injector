@@ -777,6 +777,28 @@ test("review 3 sibling: the overview's Disable all stops every automation, even 
     switchAutomation("test.kit", false);
 });
 
+// PR #323 review: a switch flipped on while Disable all asked was stopped too, without a question.
+test("review: a switch flipped while the overview's Disable all asks makes it ask again", async () => {
+    await testKit();
+    switchAutomation("account.automation.shops", true);
+    switchAutomation("test.kit", false);
+    fileStartup = ["automation shops"];
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => row(overview, "Test kit") && button(overview, "Disable all"), "both rows and Disable all");
+    await button(overview, "Disable all").listeners.click({ preventDefault() {} });
+    await settle();
+    assert.ok(text(overview).includes("Disable 1 automation, now and at start?"));
+    const since = commands.length;
+    // Shown at once, before its step and the page's read after it end.
+    void checkbox(row(overview, "Test kit")).listeners.change({ target: { checked: true } });
+    await answerYes(overview);
+    await settle();
+    assert.ok(text(overview).includes("Disable 2 automations, now and at start?"), "it asks again");
+    assert.ok(!commands.slice(since).some(([, on]) => on === false), "nothing stopped yet");
+    await answerYes(overview);
+    await until(() => !getAutomations().some(({ on }) => on), "both to stop");
+});
+
 // A second reader's review of 99dacf9: each sequence it reproduced.
 const fieldText = (name) => {
     const input = field(name);

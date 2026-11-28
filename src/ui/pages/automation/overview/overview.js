@@ -64,8 +64,14 @@ const OverviewPage = () => {
 
     // For the tools: off now or at start (a startup save that failed, say) still needs the switch. One that can't
     // start at launch (Sushi) is never wanted at start.
+    // Each row's state as it shows now (a click shows at once, before its read), so a switch flipped while Disable all
+    // asks changes what the answer stops, and the tray asks again (#323 review).
     const behind = (on) =>
-        list.val.filter((automation) => automation.on !== on || automation.atStart !== (on && automation.startup));
+        list.val.filter(
+            (automation) =>
+                (entries.get(automation.cheat)?.val?.on ?? automation.on) !== on ||
+                automation.atStart !== (on && automation.startup)
+        );
     // Which automations a tool switches is decided when its step runs; the list is read back after it, so each row
     // shows what runs, and a failure is said on the page's line, as on every automation page.
     const setAll = (on) =>

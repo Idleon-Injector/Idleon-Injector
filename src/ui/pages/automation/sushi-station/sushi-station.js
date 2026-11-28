@@ -172,7 +172,10 @@ function SushiAutomation() {
                 if (draft[key] === saved[key]) return { unchanged: true };
                 // Saved: the field shows what the config now holds, unless the player typed on meanwhile.
                 const typed = value.val;
-                return { write: () => saveSettings(draft).then(() => value.val === typed && show(key)) };
+                // Only this setting goes: another row's save still running keeps its own value (#323 review).
+                return {
+                    write: () => saveSettings({ [key]: draft[key] }).then(() => value.val === typed && show(key)),
+                };
             },
             // Escape: the saved number comes back.
             revert: () => saved && show(key),
@@ -220,11 +223,8 @@ function SushiAutomation() {
         const flip = async (on) => {
             const mine = ++flips;
             settings[key].val = on;
-            // Each flip saves its own state, in the order flipped, so the last one wins.
-            const { ok } = await save.run(
-                () => saveSettings(key === "ingameButtons" ? { ingameButtons: on } : { ...draftWith([]), [key]: on }),
-                "toggle"
-            );
+            // Each flip saves only its own state, in the order flipped, so the last one wins.
+            const { ok } = await save.run(() => saveSettings({ [key]: on }), "toggle");
             // A refused flip shows what the config holds, unless a newer flip is still to say its own.
             if (!ok && saved && mine === flips) show(key);
         };
