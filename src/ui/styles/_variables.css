@@ -132,6 +132,14 @@
     --c-world-w5-rest: #d29289;
     --c-world-w6-rest: #83b387;
     --c-world-w7-rest: #b895c7;
+    /* The same hues, flatter still, for a Home card's edge (OKLCH 0.62 / 0.05): a line, not a glow. */
+    --c-world-w1-line: #a07e6c;
+    --c-world-w2-line: #948464;
+    --c-world-w3-line: #648e9b;
+    --c-world-w4-line: #8b80a0;
+    --c-world-w5-line: #a27b75;
+    --c-world-w6-line: #738f75;
+    --c-world-w7-line: #927d9b;
 
     /* -- OVERLAYS & EFFECTS -- */
     --c-white-02: rgba(255, 255, 255, 0.02);

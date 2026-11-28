@@ -724,9 +724,9 @@
     border-radius: inherit;
     pointer-events: none;
 }
+/* Lumi (2026-11-28): one flat line per card, a little thicker and calmer than the world's colour itself. */
 .world-card[class*="-world-tab"]::before {
-    border-color: var(--world-color);
-    opacity: 0.3;
+    border: 2px solid var(--world-line, var(--world-color));
 }
 
 /* The head: the code on the header's tile, the name a step bigger, where it is under it; it opens the world's list. */
@@ -743,20 +743,17 @@
     text-align: left;
     cursor: pointer;
 }
+/* The code as the sidebar draws it: plain text in its world's colour, nothing around it. */
 .world-card__tile {
     position: relative;
     display: flex;
     flex: none;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    overflow: hidden;
-    border-radius: 13px;
-    background: var(--c-tray);
-    box-shadow: var(--shadow-panel);
+    min-width: 32px;
+    height: 32px;
     font-family: var(--font-mark);
-    font-size: 1rem;
+    font-size: 1.125rem;
     font-weight: 700;
     letter-spacing: 0.02em;
     color: var(--world-color, var(--c-text-muted));
@@ -772,11 +769,10 @@
 }
 .world-card__tile::before {
     background: var(--world-color, transparent);
-    opacity: 0.1;
+    opacity: 0;
 }
 .world-card__tile::after {
-    border: 1px solid var(--world-color, var(--c-border-strong));
-    opacity: 0.45;
+    display: none;
 }
 .world-card__tile svg {
     position: relative;
