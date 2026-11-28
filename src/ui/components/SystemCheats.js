@@ -29,6 +29,8 @@ import { AccountRow, RowTitles } from "./views/account/components/AccountRow.js"
 import { StateSwitch } from "./views/account/components/StateSwitch.js";
 import { EditableNumberRow } from "./views/account/EditableNumberRow.js";
 import { Said, clickAgain, plainReason, replay, useSaid } from "./inPlace.js";
+import { withTooltip } from "./Tooltip.js";
+import { isPinned, setPinned } from "../menu/pins.js";
 
 const { aside, button, div, input, span } = van.tags;
 
@@ -169,12 +171,32 @@ const ValueField = (cheat) =>
     });
 
 /**
+ * The pin that keeps a cheat in Home's My cheats. It rests hidden in its own room before the controls (nothing moves
+ * when it shows), shows while the row is pointed at or the pin has keyboard focus, and stays once pinned.
+ */
+export const PinButton = (command, label) =>
+    withTooltip(
+        button(
+            {
+                type: "button",
+                class: () => `cheat-pin${isPinned(command) ? " is-pinned" : ""}`,
+                "data-pin": "",
+                "aria-pressed": () => String(isPinned(command)),
+                "aria-label": `Pin ${label} to My cheats`,
+                onclick: () => setPinned(command, !isPinned(command)),
+            },
+            Icons.Pin()
+        ),
+        () => (isPinned(command) ? "Unpin" : "Pin to My cheats")
+    );
+
+/**
  * A cheat: its label and its command, then what it takes: a switch for an on/off cheat, a Run button
  * for a command, and a field first when it takes a value. A cheat with settings opens them under it from its name.
  * What a press did, or why it couldn't, is said under the command. Shared with the Cheats area (views/Cheats.js), where
  * a `dangerous` cheat's Run asks "Click again" first.
  */
-export const CheatRow = (cheat, { openId, config }) => {
+export const CheatRow = (cheat, { openId, config, pin = true, extra = null }) => {
     const { said, say, clear } = useSaid();
     const isOpen = () => openId.val === cheat.cheat;
     // Made again when the row learns it has settings (it then opens them), so the words never move between parents.
@@ -281,6 +303,7 @@ export const CheatRow = (cheat, { openId, config }) => {
         controls: () =>
             div(
                 { class: "system-cheats__controls" },
+                pin ? PinButton(cheat.cheat, cheat.label) : null,
                 field,
                 fields?.element,
                 kind.val === "toggle"
@@ -297,6 +320,8 @@ export const CheatRow = (cheat, { openId, config }) => {
                       : null
             ),
     });
+    // My cheats puts its tags on a line of their own under the cheat, before its settings.
+    if (extra) row.append(extra);
     row.append(
         div({ class: "row-detail", hidden: () => !isOpen() }, () => {
             const { settings, more } = found();

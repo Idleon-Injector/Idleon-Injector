@@ -1,31 +1,37 @@
 /**
- * My cheats: the player's own cheats, as Home's right column. Lumi: "the user is used to finding
- * their cheats on the right side of the menu in each tab". It is the sibling of a system page's cheats panel
- * (SystemCheats.js): the same group, header and row lines; beside Home's contents where the window holds both, else
- * one line under Home's title that opens the same rows in place. Two small sections, each hidden while empty: Starts
- * with injector (the startup cheats, the same list Settings › Startup edits) and This session (on now, not starting
- * with the injector). A name is white when its cheat is on and grey when off, and pressing it turns the cheat on or
- * off. Lumi: no dots or marks on rows; moving a row between sections is one faint word shown while the row is pointed
- * at.
+ * My cheats: the player's own cheats, as Home's right column. Lumi: "the user is used to finding their cheats on the
+ * right side of the menu in each tab", and it is the one place cheats are kept close (#299: the Cheats area has no
+ * favourites). It is the sibling of a system page's cheats panel (SystemCheats.js) and uses its row (`CheatRow`): the
+ * cheat's name with its command under it in the code font, and its real switch (or Run). Under each row two tags the
+ * player clicks, Pin and Autostart; on, a tag is filled and lavender, off it is a faint outline.
  *
- * A cheat gets in by being turned on anywhere (a page's cheats panel, the Cheats area, the command box); its name
- * arrives in the accent and fades to white. While the pointer or focus is in the list nothing moves: a cheat turned off
- * here stays, and a row moved to the other section goes there, when the pointer leaves.
+ * One list, A to Z by name. A cheat is in it while it is on, pinned (menu/pins.js) or set to start with the injector
+ * (the startup cheats, the same list Settings › Startup edits). Off with neither tag, it leaves, but not while the
+ * pointer or focus is in the list: nothing moves under the player's hand. A cheat that arrives fades in from the accent.
  */
 
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { fetchConfig, saveConfigPart, startupWith } from "../services/api.js";
-import { withNewNames } from "../menu/pageCheats.js";
-import { Said, plainReason, useSaid } from "./inPlace.js";
+import { pageRowOf, withNewNames } from "../menu/pageCheats.js";
+import { cheatName } from "../menu/cheatNames.js";
+import { VALUE_COMMANDS } from "../menu/valueCommands.js";
+import { pins, isPinned, setPinned } from "../menu/pins.js";
+import { Icons } from "../assets/icons.js";
+import { CheatRow } from "./SystemCheats.js";
+import { Said, useSaid } from "./inPlace.js";
 
-const { aside, button, div, span } = van.tags;
+const { aside, button, div, p, span } = van.tags;
 
-// The startup cheats as the config file holds them; null until read.
+// The startup cheats as the config file holds them; null until read. The same read gives the rows their settings.
 const startup = van.state(null);
+const config = van.state(null);
 const loadStartup = () =>
     fetchConfig()
-        .then((file) => (startup.val = withNewNames(file.startupCheats ?? [])))
+        .then((file) => {
+            config.val = file;
+            startup.val = withNewNames(file.startupCheats ?? []);
+        })
         .catch(() => {});
 // Read again when the window comes back: the file may have changed in the other window (the in-game overlay and a
 // browser both show the menu).
@@ -36,6 +42,23 @@ const groupOf = (cheat) => cheat.split(" ")[0];
 const throughGroup = (cheat) => groupOf(cheat) !== cheat && (startup.val ?? []).includes(groupOf(cheat));
 const autostarts = (cheat) => (startup.val ?? []).includes(cheat) || throughGroup(cheat);
 
+/** A command as the cheat rows take it: its short name, a hint when it takes a value, and whether it's dangerous. */
+const rowOf = (command) => {
+    const found = store.data.cheats.find((cheat) => cheat.value === command);
+    const page = pageRowOf(command);
+    const { label, hint } = VALUE_COMMANDS[command]
+        ? { label: VALUE_COMMANDS[command].label }
+        : page?.cheat === command
+          ? page
+          : cheatName(found ?? { value: command });
+    return {
+        cheat: command,
+        label,
+        ...(found?.needsParam && !VALUE_COMMANDS[command] && { hint: hint ?? "value" }),
+        ...(found?.dangerous && { dangerous: true }),
+    };
+};
+
 const arrive = (el) => {
     el.classList.remove("is-arriving");
     void el.offsetWidth; // restart the wash
@@ -44,47 +67,25 @@ const arrive = (el) => {
 };
 
 /**
- * A row is the cheat's name, and the name is the switch: pressing it turns the cheat on or off (white on, grey off).
- * Pointing at the row (or focus in it) shows one faint word at its end that moves it to the other section:
- * "autostart" in This session, "remove" in Starts with injector. Each row's presses save one at a time, in order, and
- * the row shows the newest one while they run.
+ * The two tags under a row. Pin saves at once (this browser); Autostart saves the startup cheats, one press at a time
+ * in order, the tag showing the newest press while they run.
  */
-const Row = (cheat, { said, say, clear, linger }) => {
-    // A failure is said under the list, and this row's next success takes its own failure away.
-    const failed = (reason) => say("failed", `${cheat}: ${reason}`);
-    const done = () => said.val?.text.startsWith(`${cheat}: `) && clear();
-    const wantOn = van.state(null);
+const Tags = (command, { failed, done, linger }) => {
     const wantAuto = van.state(null);
-    const isOn = () => wantOn.val ?? store.getActiveCheats().includes(cheat);
-    const isAuto = () => wantAuto.val ?? autostarts(cheat);
-    let onQueue = Promise.resolve();
+    const isAuto = () => wantAuto.val ?? autostarts(command);
     let autoQueue = Promise.resolve();
-    let onRuns = 0;
     let autoRuns = 0;
-
-    const flip = () => {
-        const next = !isOn();
-        linger(cheat);
-        wantOn.val = next;
-        onRuns++;
-        onQueue = onQueue.then(async () => {
-            const result = await store.executeCheat(cheat, next);
-            if (result.ok) done();
-            else failed(plainReason(result.message));
-            if (--onRuns === 0) wantOn.val = null;
-        });
-    };
     const flipAuto = () => {
         const next = !isAuto();
-        linger(cheat);
+        linger(command);
         wantAuto.val = next;
         autoRuns++;
         autoQueue = autoQueue.then(async () => {
             try {
-                const { config } = await saveConfigPart((file) => ({
-                    startupCheats: startupWith(withNewNames(file.startupCheats ?? []), cheat, next),
+                const { config: file } = await saveConfigPart((current) => ({
+                    startupCheats: startupWith(withNewNames(current.startupCheats ?? []), command, next),
                 }));
-                startup.val = withNewNames(config.startupCheats ?? []);
+                startup.val = withNewNames(file.startupCheats ?? []);
                 done();
             } catch {
                 failed("Couldn't save. Try again.");
@@ -93,60 +94,59 @@ const Row = (cheat, { said, say, clear, linger }) => {
             if (--autoRuns === 0) wantAuto.val = null;
         });
     };
-
     return div(
-        {
-            class: () => `my-cheat${isOn() ? " is-on" : ""}`,
-            "data-cheat": cheat,
-        },
+        { class: "my-cheat__tags" },
         button(
             {
                 type: "button",
-                class: "my-cheat__name",
-                "aria-pressed": () => String(isOn()),
-                onclick: flip,
+                class: "my-tag my-tag--pin",
+                "aria-pressed": () => String(isPinned(command)),
+                onclick: () => {
+                    linger(command);
+                    setPinned(command, !isPinned(command));
+                },
             },
-            cheat
+            Icons.Pin(),
+            "Pin"
         ),
         button(
             {
                 type: "button",
-                class: "my-cheat__move",
+                class: "my-tag my-tag--auto",
+                "aria-pressed": () => String(isAuto()),
                 // Started through its group ("w4" starts every W4 cheat): only the group's own row changes that.
-                "aria-label": () =>
-                    throughGroup(cheat)
-                        ? `${cheat}: starts with ${groupOf(cheat)}`
-                        : isAuto()
-                          ? `${cheat}: don't start with the injector`
-                          : `${cheat}: start with the injector`,
-                disabled: () => startup.val === null || throughGroup(cheat),
+                title: () => (throughGroup(command) ? `Starts with ${groupOf(command)}` : ""),
+                disabled: () => startup.val === null || throughGroup(command),
                 onclick: flipAuto,
             },
-            () => (isAuto() ? "remove" : "autostart")
+            "Autostart"
         )
     );
 };
 
-/** `side`: true while Home stands in the two-column frame (Pages.js), so the list stands beside Home's contents. */
+/** `side`: true while Home has room for the column beside its worlds; else My cheats is one line under the title. */
 export const MyCheats = (side) => {
     const { said, say, clear } = useSaid();
-    // Cheats switched off here that stay in the list until the pointer (or focus) leaves it.
+    // Cheats that lost their last reason to be here while the player works in the list; they go when the pointer
+    // (or focus) leaves it.
     const lingering = van.state([]);
-    // While the player works in the list, every row keeps its section; a row whose autostart changed moves on leaving.
-    const held = van.state(false);
     const linger = (cheat) => {
-        held.val = true;
         if (!lingering.val.includes(cheat)) lingering.val = [...lingering.val, cheat];
     };
-    const letGo = () => {
-        held.val = false;
-        if (lingering.val.length) lingering.val = [];
-    };
+    const letGo = () => lingering.val.length && (lingering.val = []);
 
-    const shown = () =>
-        [...new Set([...store.getActiveCheats(), ...(startup.val ?? []), ...lingering.val])].sort((a, b) =>
-            a.localeCompare(b)
+    // Names for sorting, once the cheat list is in (a command until then).
+    const labels = new Map();
+    const labelOf = (command) => {
+        if (!labels.has(command) && store.data.cheats.length) labels.set(command, rowOf(command).label);
+        return labels.get(command) ?? command;
+    };
+    const shown = () => {
+        store.data.cheats; // the names come with the cheat list
+        return [...new Set([...store.getActiveCheats(), ...(startup.val ?? []), ...pins.val, ...lingering.val])].sort(
+            (a, b) => labelOf(a).localeCompare(labelOf(b))
         );
+    };
     const count = van.derive(() => shown().length);
     const onCount = van.derive(() => store.getActiveCheats().length);
 
@@ -157,73 +157,67 @@ export const MyCheats = (side) => {
         loadStartup();
     });
 
-    // Folded (no room beside Home's contents): the header is one line that opens the rows in place.
+    // Folded (no room beside Home's worlds): the header is one line that opens the rows in place.
     const open = van.state(false);
-
-    // Two sections, each hidden while empty: the cheats that start with the injector, then the ones on this session.
-    const autoList = div({ class: "my-cheats__list" });
-    const sessionList = div({ class: "my-cheats__list" });
-    const autoCount = van.state(0);
-    const sessionCount = van.state(0);
-    const section = (title, list, n) =>
-        div({ class: "my-cheats__section", hidden: () => !n.val }, div({ class: "my-cheats__sub" }, title), list);
+    const list = div({ class: "my-cheats__list" });
+    const openId = van.state(null);
     const body = div(
         {
             id: "my-cheats-rows",
             class: "tabbed-list__body system-cheats__rows my-cheats__body",
             hidden: () => !side.val && !open.val,
         },
-        section("Starts with injector", autoList, autoCount),
-        section("This session", sessionList, sessionCount),
-        div({ class: "my-cheats__empty", hidden: () => count.val > 0 }, "No cheats on yet."),
+        list,
+        div(
+            { class: "my-cheats__empty", hidden: () => count.val > 0 },
+            p("Nothing here yet."),
+            p("Turn a cheat on, or pin it with ", span({ class: "my-cheats__glyph" }, Icons.Pin()), " on any page."),
+            button(
+                { type: "button", class: "btn-quiet btn-sm", onclick: () => store.openMenu({ view: "CHEATS" }) },
+                "Open Cheats"
+            )
+        ),
         Said({ said, className: "said--line" })
     );
 
     // One element per cheat, kept while it is listed, so a row keeps its state; a new one arrives in the accent.
     const rows = new Map();
-    const placed = new Map(); // the section each row sits in: true for Starts with injector
     let ready = false;
     const firstStates = store.data.activeCheatStates;
     van.derive(() => {
         const names = shown();
-        const keep = held.val;
         for (const [name, el] of rows)
             if (!names.includes(name)) {
                 el.remove();
                 rows.delete(name);
-                placed.delete(name);
             }
-        const lists = { true: [], false: [] };
-        for (const name of names) {
+        names.forEach((name, i) => {
             let el = rows.get(name);
-            const isNew = !el;
-            if (isNew) {
-                el = Row(name, { said, say, clear, linger });
+            if (!el) {
+                // A failure is said under the list, and this row's next success takes its own failure away.
+                const failed = (reason) => say("failed", `${labelOf(name)}: ${reason}`);
+                const done = () => said.val?.text.startsWith(`${labelOf(name)}: `) && clear();
+                el = CheatRow(rowOf(name), {
+                    openId,
+                    config,
+                    pin: false,
+                    extra: Tags(name, { failed, done, linger }),
+                });
+                el.classList.add("my-cheat");
                 rows.set(name, el);
+                if (ready) {
+                    arrive(el);
+                    requestAnimationFrame(() => el.scrollIntoView({ block: "nearest" }));
+                }
             }
-            const auto = keep && placed.has(name) ? placed.get(name) : autostarts(name);
-            const moved = placed.has(name) && placed.get(name) !== auto;
-            placed.set(name, auto);
-            lists[auto].push(el);
-            if (ready && (isNew || moved)) {
-                arrive(el);
-                // A new cheat is shown; a moved one isn't scrolled to, so the list stays where the player left it.
-                if (isNew) requestAnimationFrame(() => el.scrollIntoView({ block: "nearest" }));
-            }
-        }
-        for (const [list, els, n] of [
-            [autoList, lists.true, autoCount],
-            [sessionList, lists.false, sessionCount],
-        ]) {
+            el.classList.toggle("is-off", !store.getActiveCheats().includes(name));
             // Moved only when out of place: moving a row that holds focus would drop it.
-            els.forEach((el, i) => list.children[i] !== el && list.insertBefore(el, list.children[i] ?? null));
-            n.val = els.length;
-        }
+            if (list.children[i] !== el) list.insertBefore(el, list.children[i] ?? null);
+        });
         // Not until the startup list and the game's first cheat states are in: what was on at start doesn't "arrive".
         if (startup.val !== null && store.data.activeCheatStates !== firstStates) ready = true;
     });
 
-    // The header a page's cheats panel has: the name, then how many are on.
     const headWords = () => [
         span({ class: "account-section__title" }, "My cheats"),
         span({ class: "account-section__meta system-cheats__count" }, () => (onCount.val ? `${onCount.val} on` : "")),
@@ -234,8 +228,11 @@ export const MyCheats = (side) => {
             class: () => `system-cheats my-cheats ${side.val ? "is-side" : "is-folded"}${open.val ? " is-open" : ""}`,
             "aria-label": "My cheats",
             onpointerleave: letGo,
-            // Focus moving out by keyboard. Not a click inside (a press on a row blurs before the switch takes focus
-            // back), and not the whole window losing focus (the player went to the game).
+            // A switch flipped off here keeps its row until the pointer leaves.
+            onchange: (e) =>
+                e.target.matches("[role=switch]") && linger(e.target.closest("[data-cheat]")?.dataset.cheat),
+            // Focus moving out by keyboard. Not a click inside, and not the whole window losing focus (the player went to
+            // the game).
             onfocusout: (e) => {
                 if (document.hasFocus() && !panel.matches(":hover") && !panel.contains(e.relatedTarget)) letGo();
             },
@@ -260,6 +257,10 @@ export const MyCheats = (side) => {
                           },
                           ...headWords()
                       ),
+            p(
+                { class: "my-cheats__hint", hidden: () => !side.val && !open.val },
+                "Pin a cheat on any page to keep it here."
+            ),
             body
         )
     );

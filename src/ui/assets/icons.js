@@ -92,6 +92,23 @@ export const Icons = {
         ),
 
     /** Soft, rounded points. An outline at rest; a favourite fills it (CSS `fill: currentColor` on `.icon-star`). */
+    /**
+     * A push pin: a cap, a soft body and the needle. Its body fills (`.icon-pin__body`, `fill: currentColor`) when the
+     * cheat is pinned, the same exception the favourite's star had.
+     */
+    Pin: ({ class: className, ...props } = {}) =>
+        SvgBase(
+            [
+                path({ d: "M8.8 4.5h6.4" }),
+                path({
+                    class: "icon-pin__body",
+                    d: "M10.3 4.5h3.4v4.4q0 1.1.8 1.9l1.9 1.9q.9 1-.4 1.1H8q-1.3-.1-.4-1.1l1.9-1.9q.8-.8.8-1.9z",
+                }),
+                path({ d: "M12 13.8v5.7" }),
+            ],
+            { "aria-hidden": "true", class: ["icon-pin", className].filter(Boolean).join(" "), ...props }
+        ),
+
     Star: ({ class: className, ...props } = {}) =>
         SvgBase(
             path({
