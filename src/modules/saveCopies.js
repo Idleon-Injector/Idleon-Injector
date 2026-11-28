@@ -197,8 +197,9 @@ function restoreWrites(groups, select) {
             path: `gga.${change.path}`,
             value: change.copy,
             // A gem bought between this plan and the write: the game refuses the restore rather than lose it (in the
-            // game, the unguarded writes of a batch wait on its guarded ones).
-            ...(GEM_KEYS.has(change.path.split(/[.[]/)[0]) ? { expect: change.now } : {}),
+            // game, the unguarded writes of a batch wait on its guarded ones, and the gem values wait on each other,
+            // so a purchase record never goes back without its gems).
+            ...(GEM_KEYS.has(change.path.split(/[.[]/)[0]) ? { expect: change.now, together: true } : {}),
         }));
 }
 

@@ -93,9 +93,10 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
 
     /**
      * What changed between each copy and the one before it of the same character, so the list can say it ("Cards,
-     * Stamps, 3 more"). Copies never change, so each answer is kept for the run. A copy with no earlier one is `first`.
+     * Stamps, 3 more"). Copies never change, so each answer is kept for the run, by the copy and the one before it (the
+     * one before changes when retention deletes it). A copy with no earlier one is `first`.
      */
-    const sinceCache = new Map(); // id -> { keys: [{ key, n }], itself, first } | null
+    const sinceCache = new Map(); // "id older-id" -> { keys: [{ key, n }], itself, first }
     const parsed = new Map(); // a few read copies: the list asks newest first, so each one is the next one's older
     const readParsed = async (id) => {
         if (!parsed.has(id)) {
@@ -105,10 +106,11 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
         return parsed.get(id);
     };
     const sinceBefore = async (copies, id) => {
-        if (sinceCache.has(id)) return sinceCache.get(id);
         const at = copies.findIndex((c) => c.id === id);
         if (at < 0) return null;
         const older = copies.slice(at + 1).find((c) => c.character === copies[at].character);
+        const key = `${id} ${older?.id ?? ""}`;
+        if (sinceCache.has(key)) return sinceCache.get(key);
         let since;
         if (!older) since = { keys: [], itself: 0, first: true };
         else {
@@ -122,7 +124,7 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
             const keys = [...counts].sort((a, b) => b[1] - a[1]).map(([key, n]) => ({ key, n }));
             since = { keys, itself, first: false };
         }
-        sinceCache.set(id, since);
+        sinceCache.set(key, since);
         return since;
     };
 

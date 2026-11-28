@@ -409,6 +409,57 @@ test("a gem bought between the plan and the write refuses the restore, and the g
     gga.GemsOwned = gems;
 });
 
+// CodeRabbit on #318: what changed since the copy before is worked out again once retention deleted that one.
+test("what a copy changed follows the copy before it, after retention deletes the one in between", async () => {
+    const app = server();
+    const bat = gga.Cards.h.Bat;
+    const ids = [];
+    for (const value of [1, 2, 1]) {
+        gga.Cards.h.Bat = value;
+        ids.push(await cloudSave(app));
+        await new Promise((resolve) => setTimeout(resolve, 5)); // each copy its own millisecond
+    }
+    gga.Cards.h.Bat = bat;
+    const since = async () =>
+        (await request(app.router, "POST", "/api/save-copies/since", { ids: [ids[2]] })).body.since[ids[2]];
+    assert.deepEqual((await since()).keys, [{ key: "Cards", n: 1 }]);
+    const middle = fs.readdirSync(app.dir).find((name) => name.startsWith(ids[1]));
+    fs.unlinkSync(path.join(app.dir, middle));
+    assert.deepEqual((await since()).keys, [], "the same Bat as the copy before it now");
+});
+
+// CodeRabbit on #318: the gem values a restore puts back stand or fall together. A gem bought between the plan and
+// the write refuses GemsOwned, and with it the gem purchases, so a purchase never goes back without its gems.
+test("a gem bought between the plan and the write keeps the gem purchases too", async () => {
+    const app = server();
+    const kept = gga.GemItemsPurchased;
+    gga.GemItemsPurchased = [0, 0, 0];
+    const id = await cloudSave(app);
+    const gems = gga.GemsOwned;
+    gga.GemsOwned -= 20; // spent on the item below
+    gga.GemItemsPurchased = [1, 0, 0];
+    const real = game.runtime.evaluate;
+    game.runtime.evaluate = (options) => {
+        if (options.expression.startsWith("writeGamePaths(")) gga.GemsOwned += 50;
+        return real(options);
+    };
+    let res;
+    try {
+        res = await restore(app, id, ["GemsOwned", "GemItemsPurchased"]);
+    } finally {
+        game.runtime.evaluate = real;
+    }
+    assert.equal(res.body.ok, false);
+    assert.ok(
+        res.body.results.every((r) => !r.ok && r.error === "changed since"),
+        JSON.stringify(res.body)
+    );
+    assert.equal(gga.GemsOwned, gems + 30, "the bought gems stay");
+    assert.deepEqual([...gga.GemItemsPurchased], [1, 0, 0], "and so does the purchase");
+    gga.GemsOwned = gems;
+    gga.GemItemsPurchased = kept;
+});
+
 test("a restore that landed says so even when its copy after can't be made", async () => {
     const app = server();
     const id = await cloudSave(app);
