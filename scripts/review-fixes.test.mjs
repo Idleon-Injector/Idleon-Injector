@@ -348,3 +348,45 @@ test("caves: an unknown object that leaves the list and comes back gets a workin
     await wait(50);
     assert.ok(isOn(switchFor(root, unknown)), "its switch shows it discovered");
 });
+
+// CodeRabbit on #322: − and + on a decimal field keep its decimals.
+test("caves: + and − on a biggest haul with decimals keep them", async (t) => {
+    const kept = gga.Spelunk[2][1];
+    t.after(() => (gga.Spelunk[2][1] = kept));
+    gga.Spelunk[2][1] = 12.5;
+    const root = await openPage(CAVES, (r) => byClass(r, "value-row").length > 1);
+    const row = byClass(root, "value-row")[1];
+    const haul = () => inputs(row)[2];
+    await until(() => haul().value === "12.50", "the haul to show 12.50");
+    const wrapper = byClass(row, "number-input-wrapper").find((node) => elements(node).includes(haul()));
+    click(elements(wrapper).find((node) => node.attributes["aria-label"] === "Raise"));
+    await until(() => haul().value === "13.50", "+ to give 13.50");
+});
+
+// CodeRabbit on #322: with every object discovered, Add all is pressable while a switch-off still saves.
+test("caves: Add all can be pressed while a switch-off saves, even with nothing missing", async (t) => {
+    const kept = [...gga.Spelunk[6]];
+    const realFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = realFetch;
+        gga.Spelunk[6] = kept;
+    });
+    gga.Spelunk[6] = gga.CustomLists.h.SpelunkRocks.flatMap((cave) => cave.slice(0, -1).map((object) => object[0]));
+    const root = await openPage(CAVES, (r) => switchesOf(r).length > 3);
+    await until(() => attrOf(button(root, "Add all"), "disabled"), "Add all to have nothing to add");
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).endsWith("/gga/write") && writes++ === 0) await gate;
+        return realFetch(url, options);
+    };
+    const id = gga.Spelunk[6][0];
+    switchFor(root, id).listeners.change({ target: { checked: false } });
+    await until(() => !attrOf(button(root, "Add all"), "disabled"), "Add all to be pressable while it saves");
+    click(button(root, "Add all"));
+    release();
+    await until(() => writes === 2, "the switch-off, then Add all, to write");
+    await wait(100);
+    assert.ok(gga.Spelunk[6].includes(id), "Add all discovered it again");
+});

@@ -1,5 +1,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { NumberInput, setNumberInputValue } from "../../NumberInput.js";
+import { formattedStep } from "../../../utils/numberFormat.js";
 import {
     adjustFormattedIntInput,
     joinClasses,
@@ -273,6 +274,19 @@ export const ValueTableRow = ({
                                     adjustDraft: (raw, delta) => {
                                         // A blank `toDraft` box (an Empty node) is already the lowest: − leaves it.
                                         if (field.toDraft && delta < 0 && String(raw ?? "").trim() === "") return "";
+                                        // A `float` field keeps its decimals: 12.5 steps to 13.5.
+                                        if (field.float) {
+                                            const min = field.min ?? 0;
+                                            const value =
+                                                resolveNumberInput(raw, {
+                                                    formatted: field.formatted,
+                                                    float: true,
+                                                    min,
+                                                    fallback: min,
+                                                }) ?? min;
+                                            const step = field.formatted ? formattedStep(value) : 1;
+                                            return Math.max(min, Math.min(maxOf(field), value + delta * step));
+                                        }
                                         if (field.formatted) return adjustFormattedIntInput(raw, delta, 0, { min: 0 });
                                         const value = toInt(raw, { min: 0 });
                                         if (value > maxOf(field)) return delta > 0 ? value : value - 1;

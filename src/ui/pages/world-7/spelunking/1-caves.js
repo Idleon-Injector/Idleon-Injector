@@ -211,9 +211,12 @@ function SpelunkingCavesTab() {
         });
 
     // Edits start from the game's list as it is now, not the page's last read: the game adds to it as objects are
-    // destroyed. Whatever happens, the page then shows the list the game holds.
-    const change = (edit) =>
-        inTurn(async () => {
+    // destroyed. Whatever happens, the page then shows the list the game holds. `changing` counts the ones asked for
+    // and not ended yet, so Add all stays pressable while a switch-off waits.
+    const changing = van.state(0);
+    const change = (edit) => {
+        changing.val++;
+        return inTurn(async () => {
             try {
                 return (await edit(normalizeStoredNames(await gga(DISCOVERED_OBJECTS_PATH)))) ?? { ok: true };
             } finally {
@@ -223,7 +226,8 @@ function SpelunkingCavesTab() {
                     // ponytail: the picture stays as it was; the next change reads the game again before it writes.
                 }
             }
-        });
+        }).finally(() => changing.val--);
+    };
 
     const addObjects = (objectIds) =>
         change(async (currentNames) => {
@@ -277,7 +281,7 @@ function SpelunkingCavesTab() {
                         ActionButton({
                             label: "Add all",
                             status: bulk.status,
-                            disabled: () => loading.val || !missing().length,
+                            disabled: () => loading.val || (!missing().length && !changing.val),
                             onClick: (e) => {
                                 e.preventDefault();
                                 // Every known object shown: its turn adds the ones the game's list lacks then, so a
