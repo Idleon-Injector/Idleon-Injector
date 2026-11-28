@@ -4,21 +4,27 @@
  */
 
 import van from "../../../vendor/van-1.6.0.js";
-import vanX from "../../../vendor/van-x-0.6.3.js";
 import store from "../../../state/store.js";
-import { EmptyState } from "../../EmptyState.js";
-import { SearchBar } from "../../SearchBar.js";
 import { NumberInput } from "../../NumberInput.js";
-import { Icons } from "../../../assets/icons.js";
 import { RefreshButton } from "./components/AccountPageChrome.js";
+import { RowTitles } from "./components/AccountRow.js";
 import { useAccountLoad } from "./accountLoadPolicy.js";
 import { gga } from "../../../services/api.js";
 import { createStaticRowReconciler, joinClasses, writeVerified } from "./accountShared.js";
 import { SaveState, saveStateClass, useAutoSave } from "./autoSave.js";
 import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
 import { StateSwitch } from "./components/StateSwitch.js";
+import { ListPanel } from "./tabShared.js";
+// The note the menu's search finds a slot by too.
+import { optionNote as noteOf } from "../../../menu/menuModel.js";
 
 const { div, input, label, span } = van.tags;
+
+/** The slot the menu's search last opened this page for: it shows even with Hide AI guesses on, until that is flipped. */
+export const pickedSlot = van.state(null);
+
+// A slot the list doesn't name yet.
+const UNKNOWN = "Unknown option";
 
 const getOptionType = (rawValue, schema) => schema?.type ?? typeof rawValue;
 
@@ -48,9 +54,8 @@ const normalizeForWrite = (type, rawValue) => {
 const createOptionRow = (index, rawValue, schema) => {
     const editorType = van.state(getOptionType(rawValue, schema));
     const currentValue = van.state(valueToDisplay(editorType.val, rawValue));
-    const name = van.state(schema?.name ?? "UNDOCUMENTED INDEX");
-    const description = van.state(schema?.description ?? null);
-    const isAI = van.state(Boolean(schema?.AI));
+    const name = van.state(schema?.name ?? UNKNOWN);
+    const note = van.state(noteOf(schema));
     const warning = van.state(schema?.warning ?? null);
     let isFocused = false;
     const stored = () => store.data.accountOptions[index];
@@ -80,9 +85,8 @@ const createOptionRow = (index, rawValue, schema) => {
         const nextType = getOptionType(nextRawValue, nextSchema);
 
         editorType.val = nextType;
-        name.val = nextSchema?.name ?? "UNDOCUMENTED INDEX";
-        description.val = nextSchema?.description ?? null;
-        isAI.val = Boolean(nextSchema?.AI);
+        name.val = nextSchema?.name ?? UNKNOWN;
+        note.val = noteOf(nextSchema);
         warning.val = nextSchema?.warning ?? null;
 
         if (!isFocused) {
@@ -112,6 +116,7 @@ const createOptionRow = (index, rawValue, schema) => {
                 class: "option-input",
                 // Big values come in short forms like 5e50; the save checks the typed text.
                 mode: "any",
+                "aria-label": () => name.val,
                 value: currentValue,
                 oninput: (e) => (currentValue.val = e.target.value),
                 onDecrement: () => (currentValue.val = Number(currentValue.val) - 1),
@@ -119,40 +124,31 @@ const createOptionRow = (index, rawValue, schema) => {
             });
         }
 
-        return input({
-            type: "text",
-            class: "option-input",
-            value: currentValue,
-            oninput: (e) => (currentValue.val = e.target.value),
-        });
+        // Text (a guild name, a list of ids) sits in the number field's shape, without − / +, so it rests the same way.
+        return div(
+            { class: "number-input-wrapper option-text" },
+            input({
+                type: "text",
+                // Text, not a number: the Fields check lets a text field through by this mark.
+                "data-name-field": "",
+                "aria-label": () => name.val,
+                value: currentValue,
+                oninput: (e) => (currentValue.val = e.target.value),
+            })
+        );
     };
 
-    // A value row like the pages' (#26): index and name, its note and warning, then the field at the right edge.
+    // A shared value row (#26): its slot quiet before the name, what it does under it, then the field at the right edge.
     const node = div(
         {
-            class: () =>
-                joinClasses(
-                    "option-item account-row account-row--value",
-                    isAI.val ? "is-ai-option" : "",
-                    warning.val ? "has-warning" : "",
-                    saveStateClass(status.val, undo)
-                ),
+            class: () => joinClasses("option-item account-row account-row--value", saveStateClass(status.val, undo)),
             "data-index": index,
             "data-change-label": () => `${name.val} (${index})`,
         },
         div(
             { class: "account-row__info" },
             span({ class: "account-row__index" }, `#${index}`),
-            div(
-                { class: "account-row__name-group" },
-                span(
-                    { class: "account-row__name option-label" },
-                    () => (isAI.val ? span({ class: "option-ai-label" }, "AI_GEN // ") : span()),
-                    () => name.val
-                ),
-                () => (warning.val ? span({ class: "option-warning" }, Icons.Warning(), ` ${warning.val}`) : span()),
-                () => (description.val ? span({ class: "option-description" }, description.val) : span())
-            )
+            RowTitles({ name: () => name.val, note: () => note.val, warning: () => warning.val })
         ),
         div(
             {
@@ -178,13 +174,12 @@ const createOptionRow = (index, rawValue, schema) => {
 
 export const AccountOptionsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Account options" });
-    const ui = vanX.reactive({
-        filterText: "",
-        hideAI: false,
-    });
+    // Off at start: every slot shows. The top bar's search does the rest.
+    const hideAI = van.state(false);
     const rowCache = new Map();
-    const optionsListNode = div({ class: "scrollable-panel" });
+    const optionsListNode = div();
     const reconcileOptionRows = createStaticRowReconciler(optionsListNode);
+    const shownCount = van.state(0);
 
     const getOptionRow = (index, rawValue, schema) => {
         if (!rowCache.has(index)) rowCache.set(index, createOptionRow(index, rawValue, schema));
@@ -196,7 +191,6 @@ export const AccountOptionsTab = () => {
     const reconcileVisibleRows = () => {
         const data = store.data.accountOptions;
         const schema = store.data.accountSchema;
-        const term = ui.filterText.toLowerCase();
         const visibleRows = [];
         const visibleIndexes = [];
 
@@ -204,27 +198,14 @@ export const AccountOptionsTab = () => {
             const rawValue = data[index];
             const optionSchema = schema[index];
 
-            if (ui.hideAI && optionSchema?.AI) continue;
-            if (term) {
-                const optionName = (optionSchema?.name ?? `UNDOCUMENTED ${index}`).toLowerCase();
-                if (!optionName.includes(term) && !String(index).includes(term)) continue;
-            }
+            if (hideAI.val && optionSchema?.AI && index !== pickedSlot.val) continue;
 
             visibleRows.push(getOptionRow(index, rawValue, optionSchema).node);
             visibleIndexes.push(index);
         }
 
-        reconcileOptionRows(
-            visibleIndexes.join("|"),
-            visibleRows.length
-                ? visibleRows
-                : [
-                      EmptyState({
-                          title: "NO OPTIONS MATCH",
-                          subtitle: "Adjust your filter or search term",
-                      }),
-                  ]
-        );
+        reconcileOptionRows(visibleIndexes.join("|"), visibleRows);
+        shownCount.val = visibleRows.length;
     };
 
     const loadAccountOptions = async () => {
@@ -238,31 +219,35 @@ export const AccountOptionsTab = () => {
     loadAccountOptions();
 
     return PersistentAccountListPage({
-        rootClass: "tab-container",
-        title: "ACCOUNT OPTIONS",
-        description: "Raw OptionsListAccount editor. Writes bypass normal in-game safety checks.",
-        actions: RefreshButton({
-            onRefresh: loadAccountOptions,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Account Options",
+        description: "The game's account options, slot by slot. A value goes in as typed; the game doesn't check it.",
+        actions: RefreshButton({ onRefresh: loadAccountOptions }),
         toolbar: [
-            SearchBar({
-                placeholder: "FILTER_INDEX",
-                onInput: (val) => (ui.filterText = val),
-            }),
             label(
                 { class: "toggle-switch account-toggle" },
                 input({
                     type: "checkbox",
-                    checked: () => ui.hideAI,
-                    onchange: (e) => (ui.hideAI = e.target.checked),
+                    checked: hideAI,
+                    onchange: (e) => {
+                        pickedSlot.val = null;
+                        hideAI.val = e.target.checked;
+                    },
                 }),
                 span({ class: "slider" }),
-                span({ class: "label" }, "HIDE AI")
+                span({ class: "label" }, "Hide AI guesses")
             ),
         ],
         state: { loading, error },
-        loadingText: "READING ACCOUNT OPTIONS",
-        errorTitle: "ACCOUNT OPTIONS READ FAILED",
-        body: optionsListNode,
+        loadingText: "Reading account options",
+        errorTitle: "Couldn't read account options",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: optionsListNode,
+                empty: () => (loading.val || shownCount.val ? null : "No account options found"),
+            })
+        ),
     });
 };

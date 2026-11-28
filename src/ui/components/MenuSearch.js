@@ -13,24 +13,41 @@ import store from "../state/store.js";
 import { VIEWS } from "../state/constants.js";
 import { Icons } from "../assets/icons.js";
 import { menuSearchEntries, menuTree } from "../menu/pageRegistry.js";
-import { cheatSearchEntries, commandHint, isDangerousCommand, searchMenu } from "../menu/menuModel.js";
+import {
+    cheatSearchEntries,
+    commandHint,
+    isDangerousCommand,
+    optionSearchEntries,
+    searchMenu,
+} from "../menu/menuModel.js";
 import { createPageSearch } from "../menu/pageSearch.js";
 import { configDescriptions } from "../config/configDescriptions.js";
 import { Said, plainReason, useSaid } from "./inPlace.js";
 import { StepPicker } from "./views/account/components/StepPicker.js";
 import { pageNow, worldNow } from "./views/Pages.js";
+import { pickedSlot } from "./views/account/AccountOptionsTab.js";
 
 const { div, input, span, button, kbd } = van.tags;
 
 // The results come in quiet groups, pages first: each group where its best result ranked, its results in rank order.
-const GROUP_NAMES = { Page: "Pages", Cheat: "Cheats", Setting: "Settings", Command: "Commands" };
+const GROUP_NAMES = {
+    Page: "Pages",
+    Cheat: "Cheats",
+    Setting: "Settings",
+    Option: "Account Options",
+    Command: "Commands",
+};
 const groupOf = (result) => result.kind ?? "Page";
 const inGroups = (hits) => {
     const order = [...new Set(hits.map(groupOf))];
     return order.flatMap((group) => hits.filter((hit) => groupOf(hit) === group));
 };
 
-const CHEATS_PAGE = { id: "cheats", system: "Cheats" };
+// Views outside the menu's pages whose rows "This page" searches, by tab; each pane carries its id as `data-page`.
+const VIEW_PAGES = {
+    [VIEWS.CHEATS.id]: { id: "cheats", system: "Cheats" },
+    [VIEWS.ACCOUNT_OPTIONS.id]: { id: "account-options", system: "Account Options" },
+};
 
 const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 // "Cheat · Cheats › W1" -> "Cheats › W1": the group already says what it is.
@@ -41,6 +58,8 @@ const resultLines = (result, showWord) => {
         // A setting by what it does, when it says; its key and the cheat it belongs to under it.
         return [result.description || result.label, `${result.target.cheat} · ${result.label}`];
     if (result.kind === "Command" && result.named) return [result.label, result.command];
+    // A slot by its number and name, what it does under it; the rest in one line that opens the page searched.
+    if (result.kind === "Option") return result.more ? [result.label, ""] : [result.label, result.description];
     if (result.kind) return [result.label, result.description ? capital(result.description) : place(result)];
     return [result.label, [result.where, showWord ? `matches "${result.matched}"` : ""].filter(Boolean).join(" · ")];
 };
@@ -59,15 +78,27 @@ export const MenuSearch = () => {
     let runs = 0;
     // ponytail: the Cheats page's own list (loaded at start), so a cheat the game adds is found without a list here.
     const cheatEntries = van.derive(() => cheatSearchEntries(store.data.cheats, configDescriptions, menuTree.val));
-    const entries = van.derive(() => [...menuSearchEntries.val, ...cheatEntries.val]);
-    // The open page (null off the pages); "page" searches its rows, "everywhere" searches the menu. The Cheats area is
-    // searched like a page.
-    const openPage = van.derive(() =>
-        store.app.activeTab === VIEWS.CHEATS.id
-            ? CHEATS_PAGE
-            : store.app.activeTab === VIEWS.PAGES.id && menuTree.val
-              ? (pageNow(worldNow(menuTree.val)) ?? null)
-              : null
+    // Account Options' slots by the names the page shows (the slot list it reads too), never by reading the game.
+    const optionEntries = van.derive(() => optionSearchEntries(store.data.accountSchema));
+    const entries = van.derive(() => [...menuSearchEntries.val, ...cheatEntries.val, ...optionEntries.val]);
+    // The slot list loads with the search's first use, once; the page then reuses it. A failed load tries again then.
+    let optionsLoading = null;
+    const loadOptionNames = () => {
+        if (optionsLoading || Object.keys(store.data.accountSchema).length) return;
+        optionsLoading = fetch("/config/optionsAccountSchema.json")
+            .then((response) => (response.ok ? response.json() : null))
+            .then((schema) => {
+                if (schema && !Object.keys(store.data.accountSchema).length) store.data.accountSchema = schema;
+            })
+            .catch(() => {})
+            .finally(() => (optionsLoading = null));
+    };
+    // The open page (null off the pages); "page" searches its rows, "everywhere" searches the menu. The Cheats area and
+    // Account Options are searched like a page.
+    const openPage = van.derive(
+        () =>
+            VIEW_PAGES[store.app.activeTab] ??
+            (store.app.activeTab === VIEWS.PAGES.id && menuTree.val ? (pageNow(worldNow(menuTree.val)) ?? null) : null)
     );
     const pageSearch = createPageSearch();
     const mode = van.state("page");
@@ -75,11 +106,14 @@ export const MenuSearch = () => {
     const results = van.derive(() =>
         command.val || searchingPage() ? [] : inGroups(searchMenu(entries.val, query.val))
     );
-    // Another page starts fresh, on its own rows; the page left behind shows all of them again.
+    // Another page starts fresh, on its own rows; the page left behind shows all of them again. A slot picked in the
+    // results opens Account Options searched for it (`searchOnOpen`).
+    let searchOnOpen = "";
     van.derive(() => {
         pageSearch.follow(openPage.val?.id ?? "");
         mode.val = "page";
-        query.val = "";
+        query.val = searchOnOpen;
+        searchOnOpen = "";
     });
     // The rows follow the bar while "This page" is picked.
     van.derive(() => pageSearch.search(mode.val === "page" ? query.val : ""));
@@ -122,6 +156,22 @@ export const MenuSearch = () => {
     };
     const go = (result, byKeyboard = false) => {
         if (result.kind === "Command") return startCommand(result.target);
+        // A slot: Account Options with "This page" searching for it (or, for "12 more", for the typed words).
+        // From the keyboard, focus stays in the field, which now searches the page for it.
+        if (result.kind === "Option") {
+            close();
+            if (!byKeyboard) field.blur();
+            // A picked slot shows even when Hide AI guesses would hide it.
+            pickedSlot.val = result.target.slot ?? null;
+            if (openPage.val?.id === "account-options") {
+                mode.val = "page";
+                query.val = result.target.query;
+            } else {
+                searchOnOpen = result.target.query;
+                store.openMenu({ view: "ACCOUNT_OPTIONS" });
+            }
+            return;
+        }
         store.openMenu({ ...result.target, focus: byKeyboard });
         query.val = "";
         close();
@@ -155,6 +205,7 @@ export const MenuSearch = () => {
             open.val = true;
             // The list loads at start; if that failed, opening search tries again (a loaded list isn't reloaded).
             if (!store.data.cheats.length) store.loadCheats();
+            loadOptionNames();
         },
         onblur: close,
         onkeydown: (e) => {

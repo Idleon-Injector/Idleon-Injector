@@ -1,10 +1,13 @@
 import van from "../../vendor/van-1.6.0.js";
 import * as API from "../../services/api.js";
 import { IS_ELECTRON } from "../../state/constants.js";
-import { Icons } from "../../assets/icons.js";
+import { EmptyState } from "../EmptyState.js";
+import { Loader } from "../Loader.js";
+import { AccountTabHeader } from "./account/components/AccountTabHeader.js";
 
-const { div, iframe, button } = van.tags;
+const { div, iframe, button, p } = van.tags;
 
+/** Advanced › DevTools: the page top, then Chrome's DevTools on the game in a frame under it. */
 export const DevTools = () => {
     const url = van.state("");
     const error = van.state("");
@@ -22,83 +25,61 @@ export const DevTools = () => {
             });
     }
 
-    const openDevTools = async () => {
+    // Each press starts clean, and only the latest press says why it failed: an older one answering late stays quiet.
+    // Screen readers hear the wait and the outcome too (`said`); a failure is the alert under the buttons.
+    const said = van.state("");
+    let presses = 0;
+    const press = async (open, name) => {
+        const mine = ++presses;
+        error.val = "";
+        said.val = `Opening ${name}…`;
         try {
-            const devtoolsUrl = await API.fetchDevToolsUrl();
-            if (IS_ELECTRON) {
-                await API.openExternalUrl(devtoolsUrl);
-            } else {
-                window.open(devtoolsUrl, "_blank", "noopener,noreferrer");
-            }
+            await open();
+            if (mine === presses) said.val = `Opened ${name} in its own window.`;
         } catch (e) {
-            error.val = `Failed to open ChromeDebug: ${e.message}`;
+            if (mine !== presses) return;
+            said.val = "";
+            error.val = `Couldn't open ${name}: ${e.message}`;
         }
     };
+    const openUrl = (target) =>
+        IS_ELECTRON ? API.openExternalUrl(target) : window.open(target, "_blank", "noopener,noreferrer");
+    const openDevTools = () => press(async () => openUrl(await API.fetchDevToolsUrl()), "DevTools");
+    const openWebUi = () => press(() => openUrl(webUiUrl), "the Web UI");
 
-    const openWebUi = async () => {
-        try {
-            if (IS_ELECTRON) {
-                await API.openExternalUrl(webUiUrl);
-            } else {
-                window.open(webUiUrl, "_blank", "noopener,noreferrer");
-            }
-        } catch (e) {
-            error.val = `Failed to open Web UI: ${e.message}`;
-        }
-    };
-
+    // Inside the game DevTools would crash it, so it opens in a window of its own.
     const renderEmbeddedView = () =>
         div(
-            { class: "danger-zone-header" },
-            div({ class: "devtools-popout-title" }, Icons.Warning(), " DEVTOOLS POP-OUT"),
-
-            div("Embedded DevTools is disabled inside the game UI to prevent crashes"),
-            div("Use the pop-out window for full DevTools access"),
+            { class: "devtools-away" },
+            p({ class: "devtools-away__line" }, "DevTools can't open inside the game. Open it in its own window."),
             div(
-                { class: "devtools-actions" },
-                button(
-                    {
-                        type: "button",
-                        class: "btn-quiet",
-                        onclick: openWebUi,
-                    },
-                    "Open Web UI"
-                ),
-                button(
-                    {
-                        type: "button",
-                        class: "btn-main",
-                        onclick: openDevTools,
-                    },
-                    "Open ChromeDebug"
-                )
+                { class: "devtools-away__actions" },
+                button({ type: "button", class: "btn-main", onclick: openDevTools }, "Open DevTools"),
+                button({ type: "button", class: "btn-quiet", onclick: openWebUi }, "Open Web UI")
             ),
-
-            () => (error.val ? div({ class: "devtools-error" }, error.val) : null)
+            p({ class: "devtools-away__error", role: "alert", hidden: () => !error.val }, () => error.val),
+            p({ class: "account-write-feedback", role: "status" }, () => said.val)
         );
 
     const renderContent = () => {
-        if (isEmbedded) {
-            return renderEmbeddedView();
-        }
-
-        if (error.val) {
-            return div(
-                { id: "devtools-message", class: "is-error" },
-
-                `Failed to load DevTools: ${error.val}`
-            );
-        }
-
-        if (!url.val) {
-            return div({ id: "devtools-message" }, "ESTABLISHING UPLINK");
-        }
-
-        return iframe({
-            id: "devtools-iframe",
-            src: url.val,
-        });
+        if (isEmbedded) return renderEmbeddedView();
+        if (error.val) return EmptyState({ failed: true, title: "Couldn't open DevTools", subtitle: error.val });
+        if (!url.val) return div({ class: "account-loader" }, Loader({ text: "Connecting to the game" }));
+        return iframe({ id: "devtools-iframe", class: "devtools-frame", title: "DevTools", src: url.val });
     };
 
-    return div({ id: "devtools-tab", class: "tab-pane" }, div({ class: "terminal-wrapper" }, renderContent));
+    return div(
+        { id: "devtools-tab", class: "tab-pane account-tab-layout" },
+        div(
+            { class: "account-sub-tab-content" },
+            div(
+                { class: "account-sub-tab-pane active devtools-page" },
+                AccountTabHeader({
+                    title: "DevTools",
+                    description: "Chrome's DevTools on the running game: its console, code and memory.",
+                }),
+                div({ class: "devtools-body" }, renderContent)
+            )
+        )
+    );
 };

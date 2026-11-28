@@ -1,26 +1,54 @@
 /**
- * DevTools View
- * Embedded warning, actions, error states
+ * Advanced › DevTools: the page top, then the frame filling the rest of the page; inside the game, one plain line and
+ * the two ways out instead.
  */
 
-.devtools-popout-title {
-    font-size: 24px;
-    margin-bottom: 20px;
+.devtools-page > .account-header {
+    max-width: var(--page-measure);
 }
 
-.devtools-actions {
-    margin: 20px auto 10px;
+.devtools-body {
     display: flex;
+    flex: 1;
     flex-direction: column;
-    align-items: center;
+    min-height: 0;
+}
+
+/* The frame is a panel of the page: the panels' corners and hairline, DevTools' own light ground inside. */
+.viewport .devtools-frame {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+    border: 1px solid var(--c-border);
+    border-radius: 12px;
+}
+
+.devtools-body > .account-loader,
+.devtools-body > .empty-state {
+    max-width: var(--page-measure);
+}
+
+.devtools-away {
+    max-width: var(--page-measure);
+}
+
+.devtools-away__line {
+    margin: 0;
+    color: var(--c-text-dim);
+}
+
+.devtools-away__actions {
+    display: flex;
+    flex-wrap: wrap;
     gap: 10px;
+    margin-top: 16px;
 }
 
-.devtools-error {
-    color: var(--c-danger);
-    margin-top: 10px;
+.devtools-away__error {
+    margin: 12px 0 0;
+    color: var(--c-danger-soft-text);
 }
 
-#devtools-message.is-error {
-    color: var(--c-danger);
+.devtools-away__error[hidden] {
+    display: none;
 }
