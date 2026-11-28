@@ -20,7 +20,10 @@ function sections(body) {
         if (heading) current = found[heading] = [];
         else if (current && /^[-*]\s+/.test(line)) current.push(line.replace(/^[-*]\s+/, ""));
     }
-    return ["New", "Improved", "Fixed", UNDER_THE_HOOD].some((h) => h in found) ? found : null;
+    // Generated notes give each of their headings at least one line; a heading over prose ("## New" and a paragraph)
+    // is notes written by hand, posted whole.
+    const known = ["New", "Improved", "Fixed", UNDER_THE_HOOD].filter((h) => h in found);
+    return known.length && known.every((h) => found[h].length) ? found : null;
 }
 
 const count = (n, one, many) => (n ? `${n} ${n === 1 ? one : many}` : "");

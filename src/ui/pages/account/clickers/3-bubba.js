@@ -171,6 +171,19 @@ const BubbaTab = () => {
         return next;
     };
     const clearLevelTotal = () => deleteGga("DNSM.h.Bubba_LVzAll");
+    // An upgrade write, then the game's cached level total cleared however it went (a failed batch may have landed
+    // in part); the write's own error stands.
+    const clearingTotal = async (task) => {
+        let saved;
+        try {
+            saved = await task();
+        } catch (error) {
+            await clearLevelTotal().catch(() => {});
+            throw error;
+        }
+        await clearLevelTotal();
+        return saved;
+    };
     const setAllColumn = van.state("level");
     const noFreeLevels = new WeakSet();
     const activeTab = van.state(TABS[0].id);
@@ -294,13 +307,9 @@ const BubbaTab = () => {
                 const data = toIndexedArray(await gga("Bubba")).map(toIndexedArray);
                 return { level: Number(data[1][upgrade.index]), free: Number(data[2][upgrade.index]) };
             },
-            // Its cache clear runs in the save's turn (not as afterWrite, so Set all writes the lines in one write).
-            runWrite: (task) =>
-                inTurn(async () => {
-                    const saved = await task();
-                    await clearLevelTotal();
-                    return saved;
-                }),
+            // Its cache clear runs in the save's turn (not as afterWrite, so Set all writes the lines in one write),
+            // after a failed save too: part of it may have landed.
+            runWrite: (task) => inTurn(() => clearingTotal(task)),
             setAll: setAllColumn,
         });
         rowsOf.get("upgrades").push(row);
@@ -385,14 +394,15 @@ const BubbaTab = () => {
                 onClick: (e) => {
                     e.preventDefault();
                     return bulk.run(() =>
-                        inTurn(async () => {
-                            await runBulkSet({
-                                entries: shownCapped(tabId),
-                                getTargetValue: ({ max }) => max,
-                                getValueState: ({ valueState }) => valueState,
-                                getPath: ({ path }) => path,
-                            });
-                            if (tabId === "upgrades") await clearLevelTotal();
+                        inTurn(() => {
+                            const write = () =>
+                                runBulkSet({
+                                    entries: shownCapped(tabId),
+                                    getTargetValue: ({ max }) => max,
+                                    getValueState: ({ valueState }) => valueState,
+                                    getPath: ({ path }) => path,
+                                });
+                            return tabId === "upgrades" ? clearingTotal(write) : write();
                         })
                     );
                 },
@@ -434,8 +444,11 @@ const BubbaTab = () => {
                     // The upgrades' Set all sets the picked column: their levels or their free levels.
                     columns: (tabId) => (tabId === "upgrades" ? UPGRADE_COLUMNS : null),
                     column: setAllColumn,
-                    onDone: (result) => {
-                        if (result.ok && activeTab.val === "upgrades") void clearLevelTotal();
+                    // The lines it wrote decide, not the tab open when it ends; a failed run may have landed in
+                    // part, so the total is cleared then too.
+                    onDone: (result, lines) => {
+                        if (lines.some((line) => rowsOf.get("upgrades").includes(line.row)))
+                            void clearLevelTotal().catch(() => {});
                     },
                 },
                 tabs: TABS.map((tab) => ({ ...tab, content: panes.get(tab.id) })),

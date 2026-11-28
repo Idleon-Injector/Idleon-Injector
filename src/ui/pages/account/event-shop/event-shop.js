@@ -91,6 +91,8 @@ const EventShopTab = () => {
     const reconcileRows = createStaticRowReconciler(listNode);
 
     const applySnapshot = ({ catalog, ownership }) => {
+        // An item the game's catalog no longer lists leaves the tray's count too.
+        for (const index of rows.keys()) if (!catalog.some((entry) => entry.index === index)) rows.delete(index);
         for (const entry of catalog) {
             if (!rows.has(entry.index)) rows.set(entry.index, { entry: van.state(entry), owned: van.state(false) });
             const row = rows.get(entry.index);

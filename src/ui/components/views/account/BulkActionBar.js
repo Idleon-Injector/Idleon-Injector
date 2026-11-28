@@ -172,7 +172,8 @@ export const setAllLines = (container) => linesIn(container, shownBySearch);
  * @param {(line: *) => {val: *}} [opts.stateOf] a line's value state
  * @param {(line: *) => number|null} [opts.maxOf] a line's max, null for none
  * @param {string|(() => string)} [opts.placeholder] the field's label ("Level"), or what gives it for the open tab
- * @param {(result: object) => void} [opts.onDone] called with how the write went (useWriteStatus' run result)
+ * @param {(result: object, lines: Array) => void} [opts.onDone] called with how the write went (useWriteStatus' run
+ *   result) and the lines it was for
  * @param {() => *} [opts.askedFor] what else the question is about (the character in play): when it differs at the
  *   answer, the tool asks again
  */
@@ -230,7 +231,7 @@ export const SetAllTool = ({
             if (refused) throw new Error(refused);
             return (write ?? writeLines)(plan);
         });
-        onDone?.(result);
+        onDone?.(result, all);
         return result;
     };
 

@@ -175,6 +175,13 @@
     animation: pageIn 200ms var(--ease-soft) both;
 }
 
+/* Here, not in _animations.css: this file loads later, so a rule there loses to the one above. */
+@media (prefers-reduced-motion: reduce) {
+    .world-sub-pane.active {
+        animation: none;
+    }
+}
+
 /* Empty pane (unimplemented tabs) */
 .world-sub-pane--empty {
     align-items: center;

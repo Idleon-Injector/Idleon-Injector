@@ -186,3 +186,10 @@ test("a long Discord post still fits Discord's limit", () => {
     assert.equal(post.description.length, 4096);
     assert.ok(post.description.endsWith(`[Read the full notes](${LINK})`));
 });
+
+// CodeRabbit on #317: notes written by hand under a heading the generator uses are posted whole, not as a lone link.
+test("hand-written notes under a New heading are posted whole", () => {
+    const body = "## New\n\nThe 3.0 release: every page in the new look.";
+    const post = releaseMessage({ tagName: "3.0.0", url: LINK, body }).embeds[0];
+    assert.equal(post.description, "**New**\n\nThe 3.0 release: every page in the new look.");
+});

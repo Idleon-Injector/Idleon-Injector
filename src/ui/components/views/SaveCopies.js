@@ -452,8 +452,9 @@ export const SaveCopies = () => {
                 const { since } = await fetchCopiesSince(chunk);
                 for (const id of chunk) if (sinceOf.has(id)) sinceOf.get(id).val = since[id] ?? null;
             } catch {
-                // Not said: the lines still work without it, and the next opening asks again.
-                chunk.forEach((id) => asked.delete(id));
+                // Not said: the lines still work without it, and the next opening asks again, for this batch and
+                // the ones after it.
+                wanted.slice(i).forEach((id) => asked.delete(id));
                 return;
             }
         }
