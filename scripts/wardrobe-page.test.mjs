@@ -493,6 +493,51 @@ test("a player who switches characters as Apply writes the food stacks is told t
     gga.EquipmentQuantity[2][0] = 25000;
 });
 
+// CodeRabbit on #328: the gear landed, so the loadout matches what's worn; the next Equip still sets the food stacks.
+test("an Equip whose food stacks weren't set finishes them on the next Equip, though the gear matches now", async () => {
+    await settle();
+    const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+    name.listeners.input({ target: { value: "Worn" } });
+    await click(button(page, "Save"));
+    await until(() => /Added Worn/.test(text(page)), "Worn to be saved");
+    await settle();
+    const [worn] = (await wardrobeConfig()).loadouts;
+    const actions = (await fetchChanges()).actions.length;
+    try {
+        gga.EquipmentOrder[0][0] = "Blank";
+        pick(page, worn.id);
+        await until(() => trayLine(page) === "Worn changes 1 slot on Lumi_Main", "the plan for the helmet");
+        const switched = switchAtNextWrite(1);
+        const apply = button(page, "Apply");
+        await click(apply);
+        await click(apply);
+        await until(() => /Worn landed on Lumi_Main, but its food stacks weren't set/.test(text(page)), "the stop");
+        await previewReadSince(await switched, "the page to read the game again");
+        assert.equal(gga.EquipmentOrder[0][0], "EquipmentHats1", "the helmet landed");
+        assert.equal(gga.EquipmentQuantity[2][1], 800, "no food stack set");
+
+        const since = requests.length;
+        await click(button(page, "Apply"));
+        await until(() => /Equipped Worn on Lumi_Main\./.test(text(page)), "the food step to finish");
+        assert.equal(gga.EquipmentQuantity[2][1], 1500);
+        assert.equal(after(since, "write").length, 1, "only the food stacks are written");
+        await settle();
+        await click(button(page, "Apply"));
+        await until(() => /Lumi_Main already wears Worn\. Nothing changed\./.test(text(page)), "nothing left to do");
+    } finally {
+        const all = (await fetchChanges()).actions;
+        for (const { id } of all.slice(0, all.length - actions)) {
+            const reads = previewReads;
+            await undoAction(id);
+            await previewReadSince(reads, "the page to read the game after the undo");
+        }
+        gga.EquipmentOrder[0][0] = "EquipmentHats1";
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
 test("a player who switches characters as Perfect Equipped writes gets no gear rebuilt on the new one", async () => {
     gga.EquipmentMap[0][0].h = { STR: 3 };
     const switched = switchAtNextWrite();

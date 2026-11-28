@@ -241,6 +241,8 @@ const WardrobePage = () => {
 
     // --- Equip ---
 
+    // The character and loadout of a run whose gear landed and whose food step hasn't finished yet.
+    let unfinishedFood = null;
     const apply = () =>
         applyWrite.run(
             async () => {
@@ -262,18 +264,25 @@ const WardrobePage = () => {
                     loadoutSaid.say("refused", "The game changed. This is the new plan; equip again.");
                     return { cancelled: true };
                 }
-                if (!plan.writes.length) {
+                // A run whose gear landed but whose food stacks weren't set: this Equip finishes them, though the
+                // gear matches now.
+                const thisRun = `${plan.character}\n${asked}`;
+                if (!plan.writes.length && unfinishedFood !== thisRun) {
                     loadoutSaid.say("done", `${plan.character} already wears ${plan.name}. Nothing changed.`);
                     return { cancelled: true };
                 }
-                await writeManyVerified(plan.writes, { character: plan.character });
-                await updateStats();
+                if (plan.writes.length) {
+                    await writeManyVerified(plan.writes, { character: plan.character });
+                    await updateStats();
+                }
+                unfinishedFood = thisRun;
                 const food = await foodFor(plan.character, plan.name, () =>
                     readComputed("wardrobe", "food", [
                         { goldenMaximum: plan.foodLimits.golden, character: plan.character },
                     ])
                 );
                 await saveFood(food.writes, plan.character, plan.name);
+                unfinishedFood = null;
                 await rememberGolden(plan.character, food.limits.golden);
                 await readStatus();
                 await showPreview();
