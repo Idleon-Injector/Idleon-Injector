@@ -333,6 +333,14 @@ test("Save keeps what the character wears as a loadout, in the config file, and 
     await until(() => button(page, "Delete"), "the Delete button of a saved loadout");
     const again = await open();
     assert.ok(options(again).some((node) => optionLabel(node) === "Drop farm"));
+    // It is what the character wears: the tray says so, and Equip asks nothing and writes nothing.
+    pick(again, loadout.id);
+    await until(() => trayLine(again) === "Lumi_Main already wears Drop farm", "the tray to say it is worn");
+    const since = requests.length;
+    const equip = realButton(again, "Equip");
+    await equip.listeners.click({ currentTarget: equip, preventDefault() {} });
+    await until(() => /Lumi_Main already wears Drop farm\. Nothing changed\./.test(text(again)), "Equip to say so");
+    assert.deepEqual(after(since, "write"), []);
 
     const remove = button(page, "Delete");
     await click(remove);
@@ -524,6 +532,8 @@ test("Apply asks again for another saved loadout of the same name", async () => 
     }
     const farms = (await wardrobeConfig()).loadouts.filter((loadout) => loadout.name === "Farm");
     assert.equal(farms.length, 2);
+    // The helmet taken off since: each Farm has something to put on, so Equip asks.
+    gga.EquipmentOrder[0][0] = "Blank";
     try {
         pick(page, farms[0].id);
         await previewShown();
@@ -538,6 +548,7 @@ test("Apply asks again for another saved loadout of the same name", async () => 
         assert.deepEqual(after(since, "write"), [], "the second Farm wasn't applied on the first one's question");
         assert.equal(apply.attributes["data-again"], "Click again", "it asks about the second Farm");
     } finally {
+        gga.EquipmentOrder[0][0] = "EquipmentHats1";
         await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
         pick(page, "rare-drops");
         await previewShown();

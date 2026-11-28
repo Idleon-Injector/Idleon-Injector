@@ -134,8 +134,9 @@ test("rebuilt gear: town stones of the world reached, the crafting bonus, and th
     assert.equal(stats("EquipmentMap[0][1].h").WIS, 25);
     // The chat ring takes the premium stone of the class's main stat.
     assert.equal(stats("EquipmentMap[0][13].h").WIS, 3);
-    // A keychain gets its preferred rolls, or what the saved loadout kept.
-    assert.deepEqual(stats("EquipmentMap[0][9].h"), {});
+    // A keychain gets its preferred rolls, or what the saved loadout kept: none, as the worn one, so no write.
+    assert.ok(!plan.writes.some((write) => write.path === "EquipmentMap[0][9].h"));
+    assert.ok(plan.writes.some((write) => write.path === "EquipmentOrder[0][9]"));
     assert.deepEqual(keychainRoll("EquipmentKeychain22", "WIS"), {
         UQ1txt: "%_MOB_RESPAWN",
         UQ1val: 6,
@@ -274,7 +275,27 @@ test("an item that doesn't fit its slot is refused, so a hand-edited saved loado
     tools[1] = "EquipmentTools15";
     assert.throws(() => read("preview", { loadout: savedLoadout({ tools }) }), /doesn't go in Tools slot 2/);
     // What the character wears always fits: a captured loadout plans.
-    assert.ok(read("preview", { loadout: { ...read("capture"), name: "Mine" } }).writes.length);
+    assert.ok(read("preview", { loadout: { ...read("capture"), name: "Mine" } }).sections.length);
+});
+
+test("a loadout saved from what's worn changes nothing; only a piece that differs since is rebuilt", () => {
+    reset();
+    // Worn rolls a rebuild would replace.
+    gga.EquipmentMap[0][0].h = { Defence: 3, STR: 1 };
+    gga.ObolEquippedMap[0][0].h = { STR: 1 };
+    const captured = { ...read("capture"), name: "Mine" };
+    const same = read("preview", { loadout: captured });
+    assert.deepEqual([same.writes, same.changes], [[], 0]);
+    // The helmet taken off since: Equip puts it back as new, and leaves the rest as worn.
+    gga.EquipmentOrder[0][0] = "Blank";
+    const plan = read("preview", { loadout: captured });
+    assert.equal(plan.changes, 1);
+    assert.deepEqual(
+        plan.writes.map(({ path }) => path),
+        ["EquipmentOrder[0][0]", "EquipmentMap[0][0].h"]
+    );
+    assert.equal(plan.writes[1].value.Defence, 10, "Farmer Brim: one slot of Armor Stone V");
+    reset();
 });
 
 test("the food and Perfect Equipped steps refuse a character other than the one they were planned for", () => {

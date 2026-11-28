@@ -86,6 +86,7 @@ export function wardrobePreview({ loadout, goldenFood = {} } = {}) {
         notes: plan.notes,
         foodLimits,
         writes: plan.writes,
+        changes: plan.changes,
         fingerprint: JSON.stringify([
             plan.character,
             Number(gga.CharacterClass),
@@ -126,7 +127,10 @@ export function wardrobePerfectFood({ character } = {}) {
     return perfectFoodWrites();
 }
 
-/** The loadout the character in play wears, as a saved loadout. Applying it rebuilds the gear, never old rolls. */
+/**
+ * The loadout the character in play wears, as a saved loadout. It keeps no rolls: applying it keeps an item still
+ * worn as it is and builds any other one new.
+ */
 export function captureWardrobe(a = gga, lists = cList) {
     const player = a.GetPlayersUsernames.indexOf(a.UserInfo[0]);
     if (player < 0) throw new Error("No character in play.");

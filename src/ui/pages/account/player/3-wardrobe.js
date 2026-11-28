@@ -262,6 +262,10 @@ const WardrobePage = () => {
                     loadoutSaid.say("refused", "The game changed. This is the new plan; equip again.");
                     return { cancelled: true };
                 }
+                if (!plan.writes.length) {
+                    loadoutSaid.say("done", `${plan.character} already wears ${plan.name}. Nothing changed.`);
+                    return { cancelled: true };
+                }
                 await writeManyVerified(plan.writes, { character: plan.character });
                 await updateStats();
                 const food = await foodFor(plan.character, plan.name, () =>
@@ -493,8 +497,8 @@ const WardrobePage = () => {
         if (said) return said.text;
         const plan = preview.val;
         if (!plan) return status.val ? `Loadouts for ${status.val.character}` : "";
-        const changes = plan.sections.flatMap((section) => section.items).filter((item) => !KEPT.test(item)).length;
-        return `${plan.name} changes ${changes} slot${changes === 1 ? "" : "s"} on ${plan.character}`;
+        if (!plan.writes.length) return `${plan.character} already wears ${plan.name}`;
+        return `${plan.name} changes ${plan.changes} slot${plan.changes === 1 ? "" : "s"} on ${plan.character}`;
     };
 
     const tools = (_, ask) => [
@@ -512,6 +516,8 @@ const WardrobePage = () => {
                     const askEquip = () => {
                         const plan = preview.val;
                         if (!plan) return undefined;
+                        // Nothing would be replaced: Equip says so without asking.
+                        if (!plan.writes.length) return apply();
                         return ask({
                             question: `Equip ${plan.name} on ${plan.character}? Gear, tools, food, cards, prayers, chips and obols are replaced.`,
                             confirmLabel: "Equip it",
