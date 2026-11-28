@@ -241,6 +241,8 @@ const WardrobePage = () => {
 
     // --- Equip ---
 
+    // The character and loadout of a run whose gear landed and whose food step hasn't finished yet.
+    let unfinishedFood = null;
     const apply = () =>
         applyWrite.run(
             async () => {
@@ -262,7 +264,15 @@ const WardrobePage = () => {
                     loadoutSaid.say("refused", "The game changed. This is the new plan; equip again.");
                     return { cancelled: true };
                 }
-                await writeManyVerified(plan.writes, { character: plan.character });
+                // A run whose gear landed but whose food stacks weren't set: this Equip finishes them, though the
+                // gear matches now.
+                const thisRun = `${plan.character}\n${asked}`;
+                if (!plan.writes.length && unfinishedFood !== thisRun) {
+                    loadoutSaid.say("done", `${plan.character} already wears ${plan.name}. Nothing changed.`);
+                    return { cancelled: true };
+                }
+                if (plan.writes.length) await writeManyVerified(plan.writes, { character: plan.character });
+                unfinishedFood = thisRun;
                 await updateStats();
                 const food = await foodFor(plan.character, plan.name, () =>
                     readComputed("wardrobe", "food", [
@@ -270,6 +280,7 @@ const WardrobePage = () => {
                     ])
                 );
                 await saveFood(food.writes, plan.character, plan.name);
+                unfinishedFood = null;
                 await rememberGolden(plan.character, food.limits.golden);
                 await readStatus();
                 await showPreview();
@@ -493,8 +504,8 @@ const WardrobePage = () => {
         if (said) return said.text;
         const plan = preview.val;
         if (!plan) return status.val ? `Loadouts for ${status.val.character}` : "";
-        const changes = plan.sections.flatMap((section) => section.items).filter((item) => !KEPT.test(item)).length;
-        return `${plan.name} changes ${changes} slot${changes === 1 ? "" : "s"} on ${plan.character}`;
+        if (!plan.writes.length) return `${plan.character} already wears ${plan.name}`;
+        return `${plan.name} changes ${plan.changes} slot${plan.changes === 1 ? "" : "s"} on ${plan.character}`;
     };
 
     const tools = (_, ask) => [
@@ -512,6 +523,8 @@ const WardrobePage = () => {
                     const askEquip = () => {
                         const plan = preview.val;
                         if (!plan) return undefined;
+                        // Nothing would be replaced: Equip says so without asking.
+                        if (!plan.writes.length) return apply();
                         return ask({
                             question: `Equip ${plan.name} on ${plan.character}? Gear, tools, food, cards, prayers, chips and obols are replaced.`,
                             confirmLabel: "Equip it",

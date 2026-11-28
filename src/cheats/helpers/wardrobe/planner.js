@@ -186,6 +186,17 @@ export function planWardrobe(
                     }
                 }
             }
+            const row =
+                id === "Blank"
+                    ? group === 1 && preset.tools[slot] === "BestTool"
+                        ? "No eligible tool at your current skill level"
+                        : "Empty"
+                    : clean(definition(id).displayName);
+            // An item already in its slot stays as it is, rolls and all: only a different one is rebuilt.
+            if (a.EquipmentOrder[group][slot] === id) {
+                rows.push(row);
+                return;
+            }
             generated.EquipmentOrder[group][slot] = id;
             put(`EquipmentOrder[${group}][${slot}]`, id);
             put(`EquipmentMap[${group}][${slot}].h`, {});
@@ -198,13 +209,7 @@ export function planWardrobe(
                       : 1;
             if (!Number.isSafeInteger(quantity) || quantity < 0) throw new Error("Invalid equipped quantity.");
             put(`EquipmentQuantity[${group}][${slot}]`, quantity);
-            rows.push(
-                id === "Blank"
-                    ? group === 1 && preset.tools[slot] === "BestTool"
-                        ? "No eligible tool at your current skill level"
-                        : "Empty"
-                    : clean(definition(id).displayName)
-            );
+            rows.push(row);
         });
         sections.push({ title: names[group], items: rows });
     });
@@ -329,7 +334,7 @@ export function planWardrobe(
             if (/Locked/.test(current)) return;
             const shape = lists.ObolShapes[Number(lists.ObolXYcoords[group]?.[slot]?.[2])];
             const id = preset.obolSlots ? preset.obolSlots[group][slot] : preset.obols[shape];
-            if (id === "Keep") return;
+            if (id === "Keep" || id === current) return;
             if (id === "Blank") {
                 put(`ObolEquippedOrder[${group}][${slot}]`, id);
                 put(`ObolEquippedMap[${group}][${slot}].h`, {});
@@ -357,8 +362,17 @@ export function planWardrobe(
             id === "Keep" ? "Keep" : id === "Blank" ? "Empty" : clean(definition(id).displayName)
         ),
     });
+    // Only what differs from the game is written: a loadout that matches what's worn writes nothing.
+    const now = (path) => parsePath(path).reduce((node, key) => node?.[key], a);
+    const changed = writes.filter(({ path, value }) => JSON.stringify(now(path)) !== JSON.stringify(value));
+    // The slots that change: an item, prayer, chip or card, or the card set. Their copies (the saved character, the
+    // card preset) aren't slots, and the game's own save brings them up to date when no slot changes.
+    const changes = changed.filter(({ path }) =>
+        /^(EquipmentOrder|PrayersActive|Lab|Cards\[2\]|ObolEquippedOrder)\[|^Cards\[3\]/.test(path)
+    ).length;
     return {
-        writes,
+        writes: changes ? changed : [],
+        changes,
         sections,
         world,
         baseClass,
