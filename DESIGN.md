@@ -249,9 +249,23 @@ game's.
   the field, so no ring.
 - **Where you are in the sidebar** takes the panels' material: its fill, a faint edge and the soft drop (a sub-entry
   stays plain words). The sidebar is otherwise as it was.
-- **Home** keeps its calm grid (Lumi, 2026-11-24): each world's code in a small tile edged faintly in its colour, its
-  name a step bigger, and its systems as tiles set into the panel (the tray's ground) that wash with the world's colour
-  when pointed at.
+- **Home is world cards** (Lumi picked concept B, 2026-11-28): each world is its own card, its code on the header's
+  tile in its world's colour and its colour on the card's edge, its name a step bigger with the world's own name under
+  it, and its systems as a darker list set into the card (the tray's ground). The cards flow into as many columns as the
+  width holds and the whole page scrolls. My cheats stays in view on the right beside the cards wherever it fits (a
+  card's column and its own 18rem) and folds into one line under the title only when the window is too narrow for both.
+- **My cheats** is the cheats panel's group and rows, one list A to Z by name, under the line "Pin a cheat on any page
+  to keep it here." A cheat is in it while it is on, pinned, or set to start with the injector; off with neither tag it
+  leaves, but not while the pointer or focus is in the list. Each row is the shared cheat row with its real switch, and
+  two tags the player clicks at the end of its command line, **Pin** (the pin drawing, filled when pinned) and
+  **Autostart**: on, lavender words on the well's fill; off, faint words in a faint outline. The command keeps the tags'
+  room and wraps before it reaches them, so a row is two lines. A cheat that takes a value has its field and switch on a
+  line of their own under it, the field from the text's edge to the switch. Empty, it says "Nothing here yet.", how
+  cheats get here, and Open Cheats. A failed save is said under the list ("Couldn't save. Try again.").
+- **Every cheat row has a pin** (a page's cheats panel, the Cheats area): its room is always kept before the controls,
+  it shows while the row is pointed at or the pin has keyboard focus, and stays, lavender and filled, once pinned. Pins
+  are saved in the config file (`injectorConfig.pinnedCheats`), so the in-game menu and a browser show the same ones. A
+  pin that can't be saved goes back and says so on its row.
 - **The icon rail** (the folded sidebar and the narrow overlay) is one column on Home's centre line: 32 px entries 2 px
   apart, full-width hairlines with 10 px on each side, and at the bottom expand as one more entry under the same
   hairline. The status shows there only when something is wrong. A world's code rests in a calmer tone of its colour
@@ -595,7 +609,8 @@ Every cheat that isn't on a system's page, in the same pieces (`views/Cheats.js`
   moves.
 - **Dangerous starts with its warning as one plain amber line,** no box. Its commands ask "Click again", and another tab
   drops the question.
-- **No Quick access:** no favorites, no recents, no stars (Lumi). Cheats that are on are in Home's My cheats.
+- **No Quick access:** no favorites, no recents, no stars (Lumi). Cheats that are on, pinned or set to start are in Home's
+  My cheats.
 - **Its drawing** is a game controller.
 
 ### World 7 on the same pieces (decided 2026-11-26)

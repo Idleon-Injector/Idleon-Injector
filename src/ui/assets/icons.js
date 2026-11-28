@@ -91,7 +91,6 @@ export const Icons = {
             { "aria-hidden": "true", ...props }
         ),
 
-    /** Soft, rounded points. An outline at rest; a favourite fills it (CSS `fill: currentColor` on `.icon-star`). */
     /**
      * A push pin: a cap, a soft body and the needle. Its body fills (`.icon-pin__body`, `fill: currentColor`) when the
      * cheat is pinned, the same exception the favourite's star had.
@@ -109,6 +108,7 @@ export const Icons = {
             { "aria-hidden": "true", class: ["icon-pin", className].filter(Boolean).join(" "), ...props }
         ),
 
+    /** Soft, rounded points. An outline at rest; a favourite fills it (CSS `fill: currentColor` on `.icon-star`). */
     Star: ({ class: className, ...props } = {}) =>
         SvgBase(
             path({

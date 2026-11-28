@@ -170,20 +170,27 @@ const ValueField = (cheat) =>
         "aria-label": `${cheat.label}: ${cheat.hint}`,
     });
 
+/** What a pin says on its row when its save fails; the next pin that saves takes it away. */
+export const PIN_FAILED = "Couldn't save the pin. Try again.";
+
 /**
- * The pin that keeps a cheat in Home's My cheats. It rests hidden in its own room before the controls (nothing moves
- * when it shows), shows while the row is pointed at or the pin has keyboard focus, and stays once pinned.
+ * The pin that keeps a cheat in Home's My cheats (menu/pins.js). It rests hidden in its own room before the controls
+ * (nothing moves when it shows), shows while the row is pointed at or the pin has keyboard focus, and stays once pinned.
+ * A save that fails is said on the row (`say`).
  */
-export const PinButton = (command, label) =>
+const PinButton = (command, label, { said, say, clear }) =>
     withTooltip(
         button(
             {
                 type: "button",
                 class: () => `cheat-pin${isPinned(command) ? " is-pinned" : ""}`,
-                "data-pin": "",
                 "aria-pressed": () => String(isPinned(command)),
                 "aria-label": `Pin ${label} to My cheats`,
-                onclick: () => setPinned(command, !isPinned(command)),
+                onclick: () =>
+                    setPinned(command, !isPinned(command)).then(
+                        () => said.val?.text === PIN_FAILED && clear(),
+                        () => say("failed", PIN_FAILED)
+                    ),
             },
             Icons.Pin()
         ),
@@ -194,9 +201,10 @@ export const PinButton = (command, label) =>
  * A cheat: its label and its command, then what it takes: a switch for an on/off cheat, a Run button
  * for a command, and a field first when it takes a value. A cheat with settings opens them under it from its name.
  * What a press did, or why it couldn't, is said under the command. Shared with the Cheats area (views/Cheats.js), where
- * a `dangerous` cheat's Run asks "Click again" first.
+ * a `dangerous` cheat's Run asks "Click again" first, and with Home's My cheats, which leaves out the pin (`pin`), adds
+ * its tags (`extra`) and its own classes (`rowClass`).
  */
-export const CheatRow = (cheat, { openId, config, pin = true, extra = null }) => {
+export const CheatRow = (cheat, { openId, config, pin = true, extra = null, rowClass = () => "" }) => {
     const { said, say, clear } = useSaid();
     const isOpen = () => openId.val === cheat.cheat;
     // Made again when the row learns it has settings (it then opens them), so the words never move between parents.
@@ -285,7 +293,7 @@ export const CheatRow = (cheat, { openId, config, pin = true, extra = null }) =>
 
     const row = AccountRow({
         rowClass: () =>
-            `system-cheats__row${fields ? " system-cheats__row--value" : ""}${field ? " system-cheats__row--field" : ""}${isOpen() ? " is-open" : ""}`,
+            `system-cheats__row${fields ? " system-cheats__row--value" : ""}${field ? " system-cheats__row--field" : ""}${isOpen() ? " is-open" : ""} ${rowClass()}`,
         rowProps: { "data-cheat": cheat.cheat },
         info: () =>
             hasDetail.val
@@ -303,7 +311,7 @@ export const CheatRow = (cheat, { openId, config, pin = true, extra = null }) =>
         controls: () =>
             div(
                 { class: "system-cheats__controls" },
-                pin ? PinButton(cheat.cheat, cheat.label) : null,
+                pin ? PinButton(cheat.cheat, cheat.label, { said, say, clear }) : null,
                 field,
                 fields?.element,
                 kind.val === "toggle"

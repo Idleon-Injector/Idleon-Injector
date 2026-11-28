@@ -5,8 +5,8 @@
  * cheat's name with its command under it in the code font, and its real switch (or Run). Under each row two tags the
  * player clicks, Pin and Autostart; on, a tag is filled and lavender, off it is a faint outline.
  *
- * One list, A to Z by name. A cheat is in it while it is on, pinned (menu/pins.js) or set to start with the injector
- * (the startup cheats, the same list Settings › Startup edits). Off with neither tag, it leaves, but not while the
+ * One list, A to Z by name. A cheat is in it while it is on, pinned (menu/pins.js, saved in the config file) or set to
+ * start with the injector (the startup cheats, the same list Settings › Startup edits). Off with neither tag, it leaves, but not while the
  * pointer or focus is in the list: nothing moves under the player's hand. A cheat that arrives fades in from the accent.
  */
 
@@ -16,7 +16,7 @@ import { fetchConfig, saveConfigPart, startupWith } from "../services/api.js";
 import { pageRowOf, withNewNames } from "../menu/pageCheats.js";
 import { cheatName } from "../menu/cheatNames.js";
 import { VALUE_COMMANDS } from "../menu/valueCommands.js";
-import { pins, isPinned, setPinned } from "../menu/pins.js";
+import { pins, isPinned, setPinned, takePins } from "../menu/pins.js";
 import { Icons } from "../assets/icons.js";
 import { CheatRow } from "./SystemCheats.js";
 import { Said, useSaid } from "./inPlace.js";
@@ -31,6 +31,7 @@ const loadStartup = () =>
         .then((file) => {
             config.val = file;
             startup.val = withNewNames(file.startupCheats ?? []);
+            takePins(file);
         })
         .catch(() => {});
 // Read again when the window comes back: the file may have changed in the other window (the in-game overlay and a
@@ -67,8 +68,9 @@ const arrive = (el) => {
 };
 
 /**
- * The two tags under a row. Pin saves at once (this browser); Autostart saves the startup cheats, one press at a time
- * in order, the tag showing the newest press while they run.
+ * The two tags at the end of a row's command line. Each shows a press at once and saves it in the config file, in turn
+ * with the menu's other saves: Pin the pinned cheats (menu/pins.js), Autostart the startup cheats, one press at a time in
+ * order, the tag showing the newest press while they run. A failed save is said under the list and read back.
  */
 const Tags = (command, { failed, done, linger }) => {
     const wantAuto = van.state(null);
@@ -103,7 +105,7 @@ const Tags = (command, { failed, done, linger }) => {
                 "aria-pressed": () => String(isPinned(command)),
                 onclick: () => {
                     linger(command);
-                    setPinned(command, !isPinned(command));
+                    setPinned(command, !isPinned(command)).then(done, () => failed("Couldn't save. Try again."));
                 },
             },
             Icons.Pin(),
@@ -183,9 +185,16 @@ export const MyCheats = (side) => {
     // One element per cheat, kept while it is listed, so a row keeps its state; a new one arrives in the accent.
     const rows = new Map();
     let ready = false;
+    let knowsCheats = false;
     const firstStates = store.data.activeCheatStates;
     van.derive(() => {
         const names = shown();
+        // Rows made before the cheat list came in don't know their value field: they are made again, once.
+        if (!knowsCheats && store.data.cheats.length) {
+            knowsCheats = true;
+            for (const el of rows.values()) el.remove();
+            rows.clear();
+        }
         for (const [name, el] of rows)
             if (!names.includes(name)) {
                 el.remove();
@@ -202,15 +211,14 @@ export const MyCheats = (side) => {
                     config,
                     pin: false,
                     extra: Tags(name, { failed, done, linger }),
+                    rowClass: () => `my-cheat${store.getActiveCheats().includes(name) ? "" : " is-off"}`,
                 });
-                el.classList.add("my-cheat");
                 rows.set(name, el);
                 if (ready) {
                     arrive(el);
                     requestAnimationFrame(() => el.scrollIntoView({ block: "nearest" }));
                 }
             }
-            el.classList.toggle("is-off", !store.getActiveCheats().includes(name));
             // Moved only when out of place: moving a row that holds focus would drop it.
             if (list.children[i] !== el) list.insertBefore(el, list.children[i] ?? null);
         });

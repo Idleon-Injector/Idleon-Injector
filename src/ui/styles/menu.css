@@ -933,7 +933,7 @@
 
 /*
  * My cheats: the page cheats panel's group, header and rows (system-cheats.css), one list A to Z. Under the title one
- * line says how cheats get here. Each row is a page's cheat row with a line of two tags under it, Pin and Autostart:
+ * line says how cheats get here. Each row is a page's cheat row with two tags on its command line, Pin and Autostart:
  * off, faint words in an outline; on, lavender words on the well's fill.
  */
 .viewport .my-cheats.is-side .account-section__header {
@@ -968,11 +968,21 @@
     display: flex;
     flex-direction: column;
 }
-.viewport .my-cheats .my-cheat {
-    flex-wrap: wrap;
-    row-gap: 8px;
-    padding-top: 12px;
-    padding-bottom: 12px;
+/*
+ * A row is two lines: the name with its switch at the end, then the command with the two tags at the end, so a tag
+ * reads as part of the cheat and the list stays short. The command keeps the tags' room (--tags-w) and wraps before it
+ * reaches them; the tags sit on its last line. A cheat that takes a value has its field and switch on a third line, the
+ * field from the text's edge to the switch.
+ */
+.viewport .my-cheats .my-cheat.account-row {
+    --tags-w: 8.25rem;
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    align-items: start;
+    padding-top: 11px;
+    padding-bottom: 11px;
 }
 .viewport .my-cheats .my-cheat + .my-cheat {
     border-top: 1px solid var(--c-hairline);
@@ -985,22 +995,97 @@
 .viewport .my-cheats .tabbed-list__body .my-cheat.account-row:hover {
     background: var(--c-panel-hover);
 }
-/* The name keeps room for its command on one line; a field and its switch go under it when the column is narrow. */
 .viewport .my-cheats .my-cheat > .account-row__info {
-    flex: 1 1 9.5rem;
+    grid-area: 1 / 1 / 3 / 2;
+    min-width: 0;
+    margin: 0;
 }
 .viewport .my-cheats .my-cheat > .account-row__controls {
-    margin-left: auto;
+    grid-area: 1 / 2;
+    margin: 0;
+}
+/* A cheat with settings: its opener's chevron sits on the name's line, before the switch. */
+.viewport .my-cheats .my-cheat > .account-row__info .row-opener {
+    align-items: flex-start;
+    min-height: 0;
+}
+.viewport .my-cheats .my-cheat > .account-row__info .row-opener::after {
+    margin-top: 6px;
+    margin-right: 2px;
+}
+/* The command line is as tall as a tag, so its words and the tags share a middle. */
+.viewport .my-cheats .my-cheat > .account-row__info .account-row__name,
+.viewport .my-cheats .my-cheat > .account-row__info .system-cheats__said {
+    padding-right: calc(var(--tags-w) - 44px); /* the tags reach past the switch and its gap (50px), and 6px air */
+}
+/* Inside an opener the words already end before its chevron (16px). */
+.viewport .my-cheats .my-cheat > .account-row__info .row-opener .account-row__name,
+.viewport .my-cheats .my-cheat > .account-row__info .row-opener .system-cheats__said {
+    padding-right: calc(var(--tags-w) - 60px);
+}
+.viewport .my-cheats .my-cheat > .account-row__info .account-row__name {
+    display: block;
+    min-height: 22px;
+    line-height: 22px;
+}
+/* Placed in the command line's area without sizing it: the switch's column stays the switch's width. */
+.viewport .my-cheats .my-cheat > .my-cheat__tags {
+    position: absolute;
+    grid-area: 2 / 1 / 3 / 3;
+    right: 0;
+    bottom: 0;
+}
+.viewport .my-cheats .my-cheat > .row-detail {
+    grid-area: 4 / 1 / 5 / 3;
+}
+/* A value cheat: the name has the whole width, and the field and the switch are a line of their own under it. */
+.viewport .my-cheats .my-cheat.system-cheats__row--field > .account-row__info,
+.viewport .my-cheats .my-cheat.system-cheats__row--value > .account-row__info {
+    grid-column: 1 / 3;
+}
+.viewport .my-cheats .my-cheat.system-cheats__row--field > .account-row__info .account-row__name,
+.viewport .my-cheats .my-cheat.system-cheats__row--value > .account-row__info .account-row__name,
+.viewport .my-cheats .my-cheat.system-cheats__row--field > .account-row__info .system-cheats__said,
+.viewport .my-cheats .my-cheat.system-cheats__row--value > .account-row__info .system-cheats__said {
+    padding-right: calc(var(--tags-w) + 6px);
+}
+.viewport .my-cheats .my-cheat.system-cheats__row--field > .account-row__controls,
+.viewport .my-cheats .my-cheat.system-cheats__row--value > .account-row__controls {
+    grid-area: 3 / 1 / 4 / 3;
+    margin-top: 8px;
+}
+.viewport .my-cheats .my-cheat.system-cheats__row--field > .account-row__controls > .system-cheats__controls,
+.viewport .my-cheats .my-cheat.system-cheats__row--value > .account-row__controls > .system-cheats__controls {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 12px;
+}
+.viewport
+    .my-cheats
+    .my-cheat.system-cheats__row--field
+    > .account-row__controls
+    > .system-cheats__controls
+    > :first-child,
+.viewport
+    .my-cheats
+    .my-cheat.system-cheats__row--value
+    > .account-row__controls
+    > .system-cheats__controls
+    > :first-child {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
 }
 /* The switch alone says on or off, as in the Cheats area. */
 .viewport .my-cheats .state-switch__words {
     display: none;
 }
 /* Off: the name steps back to the muted colour; the switch says the rest. */
-.viewport .my-cheats .my-cheat.is-off .account-row__bonus {
+.viewport .my-cheats .my-cheat.is-off > .account-row__info .account-row__bonus {
     color: var(--c-text-muted);
 }
-.viewport .my-cheats .my-cheat.is-arriving .account-row__bonus {
+.viewport .my-cheats .my-cheat.is-arriving > .account-row__info .account-row__bonus {
     animation: name-arrive 1.4s ease-out;
 }
 @keyframes name-arrive {
@@ -1010,15 +1095,14 @@
 }
 .my-cheat__tags {
     display: flex;
-    flex-basis: 100%;
     gap: 6px;
 }
 .my-tag {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    height: 24px;
-    padding: 0 10px;
+    height: 22px;
+    padding: 0 9px;
     border: 1px solid var(--c-border-strong);
     border-radius: 999px;
     background: transparent;
