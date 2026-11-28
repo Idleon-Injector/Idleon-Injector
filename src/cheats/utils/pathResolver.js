@@ -254,9 +254,10 @@ export function writePath(path, value) {
  * Non-atomic: each entry is attempted independently; earlier successful writes
  * are not rolled back if a later entry fails. Each written entry carries `value`, read back
  * in this same call (see writePath); callers verify against it before treating the batch as committed.
- * One exception: an entry without `expect` is written only when every `expect` in the batch holds (#158).
+ * One exception: an entry without `expect` is written only when every `expect` in the batch holds (#158), and an
+ * entry with `together` only when every `together` entry's `expect` holds.
  *
- * @param {Array<{ path: string, value: any, expect?: any }>} writes
+ * @param {Array<{ path: string, value: any, expect?: any, together?: boolean }>} writes
  * @returns {{ ok: boolean, results: Array<{ path: string, ok: boolean, value?: any, error?: string }> } | { error: string }}
  */
 export function writePaths(writes = []) {
@@ -274,16 +275,18 @@ export function writePaths(writes = []) {
     };
     // An entry without `expect` was planned from the same read as the batch's guarded ones (Star Signs: the claims
     // and their points balance, #158), so it is written only when every guard holds, checked before any write.
-    // A guarded entry still stands alone, so an undo puts back the values that didn't move.
-    const guardsHold = writes.every((entry) => {
-        if (!hasExpect(entry)) return true;
+    // A guarded entry still stands alone, so an undo puts back the values that didn't move; guarded entries marked
+    // `together` (a restore's gem values) stand or fall as one, so a gem purchase never lands without its gems.
+    const guardHolds = (entry) => {
         try {
             const resolved = resolveValuePath(entry.path);
             return !resolved.error && holds(resolved.target[resolved.prop], entry.expect);
         } catch {
             return false;
         }
-    });
+    };
+    const guardsHold = writes.every((entry) => !hasExpect(entry) || guardHolds(entry));
+    const togetherHold = writes.every((entry) => !entry?.together || !hasExpect(entry) || guardHolds(entry));
 
     const results = writes.map((entry, index) => {
         const path = entry?.path;
@@ -294,6 +297,7 @@ export function writePaths(writes = []) {
             return { path, ok: false, error: `Missing value at index ${index}` };
         }
         if (!guardsHold && !hasExpect(entry)) return { path, ok: false, error: "changed since" };
+        if (!togetherHold && entry.together) return { path, ok: false, error: "changed since" };
 
         try {
             const resolved = resolveValuePath(path);
