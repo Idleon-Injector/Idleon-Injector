@@ -133,39 +133,18 @@
     font-weight: 600;
 }
 
-/* Account Options rows are value rows (#26); these only add the option's own note and marks. */
-.option-item {
-    margin-bottom: 5px;
+/* Account Options rows are the shared value rows (#26). A text slot borrows the number field's shape without − / +:
+   its text sits where a number does, in the room before − / +, so text and numbers share one column. */
+.viewport .tabbed-list__body .option-item .option-text input[data-name-field] {
+    flex: 0 0 calc(100% - var(--field-steppers));
+    min-width: 0;
 }
 
-.option-item:hover {
-    z-index: 100;
-}
-
-.option-item .account-row__name {
-    white-space: normal;
-}
-
-.option-description {
-    font-size: 0.875rem;
-    color: var(--c-text-muted);
-    font-style: italic;
-    line-height: 1.3;
-}
-
-.option-ai-label {
-    color: var(--c-text-muted);
-    font-size: 0.875rem;
-}
-
-.option-warning {
-    color: var(--c-warning);
-    font-size: 0.875rem;
-}
-
-.option-input-wrapper .number-input-wrapper,
-.option-input-wrapper > input[type="text"] {
-    width: 180px;
+/* A slot's note runs long: it wraps before the room where the row's Undo and ✓ come up, so they never lie over it. */
+@media (min-width: 761px) {
+    .viewport .option-item .account-row__info {
+        padding-right: 4.5rem;
+    }
 }
 
 .toggle-switch:hover .slider {

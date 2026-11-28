@@ -10,6 +10,7 @@ const { div } = van.tags;
 
 export const AccountOptions = () =>
     div(
-        { id: "account-options-tab", class: "tab-pane account-tab-layout" },
+        // `data-page`: the top bar's "This page" search finds its rows.
+        { id: "account-options-tab", class: "tab-pane account-tab-layout", "data-page": "account-options" },
         div({ class: "account-sub-tab-content" }, div({ class: "account-sub-tab-pane active" }, AccountOptionsTab()))
     );
