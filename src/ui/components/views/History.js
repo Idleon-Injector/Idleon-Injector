@@ -36,10 +36,25 @@ export const shown = (value) => {
     return { text: full.length > 28 ? `${full.slice(0, 27)}…` : full, full };
 };
 
+/** A value a line can say as it is: a number, or a short word ("Pets+"); never the game's lists and objects. */
+export const isPlain = (value) => typeof value === "number" || (typeof value === "string" && value.length <= 16);
+
+/** A value as a player reads it: plain ones as they are, a list or object by its size ("3 items"); the title has all. */
+export const readable = (value) => {
+    const { text, full } = shown(value);
+    if (typeof value === "string") return { text: value.length > 28 ? `${value.slice(0, 27)}…` : value, full };
+    if (Array.isArray(value)) return { text: `${value.length} ${value.length === 1 ? "item" : "items"}`, full };
+    if (value && typeof value === "object") {
+        const n = Object.keys(value).length;
+        return { text: `${n} ${n === 1 ? "field" : "fields"}`, full };
+    }
+    return { text, full };
+};
+
 /** One value of an action: where it sits, old → new, and the character when the action saved on several. */
 const Entry = (entry, oneCharacter, partly) => {
-    const before = shown(entry.hasBefore ? entry.before : undefined);
-    const after = shown(entry.after);
+    const before = readable(entry.hasBefore ? entry.before : undefined);
+    const after = readable(entry.after);
     return div(
         { class: joinClasses("change-entry", entry.undone && "is-undone-entry") },
         span({ class: "change-entry__path", title: entry.path }, entry.path),
@@ -129,12 +144,14 @@ const Group = (data, openId) => {
                     .join(" · ")
             )
         ),
-        // A single value's change reads on the line itself; several open under it.
+        // A single plain value's change reads on the line itself ("8 → 7"); a list or object, or several values,
+        // only opens under it: the page and the count under the name already say what happened.
         span({ class: "change-group__change" }, () => {
-            if (data.val.entries.length !== 1) return span();
             const [entry] = data.val.entries;
-            const before = shown(entry.hasBefore ? entry.before : undefined);
-            const after = shown(entry.after);
+            if (data.val.entries.length !== 1 || !entry.hasBefore || !isPlain(entry.before) || !isPlain(entry.after))
+                return span();
+            const before = readable(entry.before);
+            const after = readable(entry.after);
             return span(
                 { title: `${before.full} → ${after.full}` },
                 span({ class: "change-group__before" }, before.text),
