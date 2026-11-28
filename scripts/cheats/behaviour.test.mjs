@@ -118,7 +118,7 @@ test("refusals and errors come back as before", async () => {
 
 test("the cheats command lists every command", async () => {
     const lines = (await run("cheats")).message.split("\n");
-    assert.equal(lines.length, 273);
+    assert.equal(lines.length, 274);
     assert.ok(lines.includes("automation shops (buy switched-on town shop items into the chest with chest coins)"));
     assert.ok(lines.includes("drop (drop items)"));
     assert.ok(lines.includes("wide attire (the bonuses of the outfits chosen on the Attire Rack page)"));
