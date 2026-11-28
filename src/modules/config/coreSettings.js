@@ -47,6 +47,10 @@ module.exports = {
         },
         browserPath: { default: "", description: "Browser executable path for web injection (auto if empty)" },
         browserUserDataDir: { default: "", description: "Browser user data dir for web injection (optional)" },
+        pinnedCheats: {
+            default: [],
+            description: "Cheats pinned to My cheats on Home. The pin on any cheat row adds and removes them",
+        },
         gameExePath: {
             example: "C:/Path/To/LegendsOfIdleon.exe",
             description: "Optional: set this to override EXE search on Windows",

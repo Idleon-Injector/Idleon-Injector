@@ -349,3 +349,60 @@
 .viewport .system-cheats .value-fields__amount {
     width: 5rem;
 }
+
+/*
+ * The pin on every cheat row (a page's panel, the Cheats area): keeps the cheat in Home's My cheats. Bare until pointed
+ * at, in its own room before the controls so nothing moves when it shows; it shows while the row is pointed at or it has
+ * keyboard focus, and stays, lavender and filled, once pinned.
+ */
+.viewport .cheat-pin {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--c-text-faint);
+    cursor: pointer;
+    opacity: 0;
+    transition:
+        opacity var(--dur-hover) var(--ease-soft),
+        color var(--dur-hover) var(--ease-soft),
+        background-color var(--dur-hover) var(--ease-soft);
+}
+.viewport .cheat-pin svg {
+    width: 17px;
+    height: 17px;
+}
+.viewport .system-cheats__row:hover .cheat-pin,
+.viewport .cheat-pin:focus-visible,
+.viewport .cheat-pin.is-pinned {
+    opacity: 1;
+}
+.viewport .cheat-pin:hover {
+    background: var(--c-panel-dim);
+    color: var(--c-text-main);
+}
+.viewport .cheat-pin.is-pinned {
+    color: var(--c-accent);
+}
+.viewport .cheat-pin.is-pinned .icon-pin__body {
+    fill: currentColor;
+}
+.viewport .cheat-pin:active {
+    transform: scale(0.92);
+}
+.viewport .cheat-pin:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 1px;
+}
+/* No pointer to point with: every pin shows, quieter. */
+@media (hover: none) {
+    .viewport .cheat-pin {
+        opacity: 0.7;
+    }
+}

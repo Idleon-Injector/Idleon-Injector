@@ -12,8 +12,9 @@ const router = new TinyRouter();
 // The sidebar's My cheats reads the startup cheats from the config.
 router.get("/api/config", (req, res) => res.json({ startupCheats: [] }));
 const { store } = await loadUi(router);
-// The Sidebar reads the window size when it loads, and its status line listens on the document for outside clicks.
-globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }) };
+// The Sidebar reads the window size when it loads, the pins listen for the window's focus, and the Sidebar's status line
+// listens on the document for outside clicks.
+globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }), addEventListener() {} };
 globalThis.document.addEventListener = () => {};
 const { Sidebar } = await importRepo("src/ui/components/Sidebar.js");
 const { menuLevel } = await importRepo("src/ui/components/MenuLevels.js");

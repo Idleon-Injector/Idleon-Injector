@@ -1027,5 +1027,6 @@ exports.injectorConfig = {
     webUrl: "https://www.legendsofidleon.com/ytGl5oc/", // Idleon web URL when using browser injection
     browserPath: "", // Browser executable path for web injection (auto if empty)
     browserUserDataDir: "", // Browser user data dir for web injection (optional)
+    pinnedCheats: [], // Cheats pinned to My cheats on Home. The pin on any cheat row adds and removes them
     // gameExePath: "C:/Path/To/LegendsOfIdleon.exe", // Optional: set this to override EXE search on Windows
 };

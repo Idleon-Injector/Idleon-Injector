@@ -95,30 +95,44 @@
 .w1-world-tab {
     --world-color: var(--c-world-w1);
     --rail-code: var(--c-world-w1-rest);
+    --world-line: var(--c-world-w1-line);
+    --world-fill: var(--c-world-w1-fill);
 }
 .w2-world-tab {
     --world-color: var(--c-world-w2);
     --rail-code: var(--c-world-w2-rest);
+    --world-line: var(--c-world-w2-line);
+    --world-fill: var(--c-world-w2-fill);
 }
 .w3-world-tab {
     --world-color: var(--c-world-w3);
     --rail-code: var(--c-world-w3-rest);
+    --world-line: var(--c-world-w3-line);
+    --world-fill: var(--c-world-w3-fill);
 }
 .w4-world-tab {
     --world-color: var(--c-world-w4);
     --rail-code: var(--c-world-w4-rest);
+    --world-line: var(--c-world-w4-line);
+    --world-fill: var(--c-world-w4-fill);
 }
 .w5-world-tab {
     --world-color: var(--c-world-w5);
     --rail-code: var(--c-world-w5-rest);
+    --world-line: var(--c-world-w5-line);
+    --world-fill: var(--c-world-w5-fill);
 }
 .w6-world-tab {
     --world-color: var(--c-world-w6);
     --rail-code: var(--c-world-w6-rest);
+    --world-line: var(--c-world-w6-line);
+    --world-fill: var(--c-world-w6-fill);
 }
 .w7-world-tab {
     --world-color: var(--c-world-w7);
     --rail-code: var(--c-world-w7-rest);
+    --world-line: var(--c-world-w7-line);
+    --world-fill: var(--c-world-w7-fill);
 }
 
 /* ── World tab shell ─────────────────────────────────────────────────────── */

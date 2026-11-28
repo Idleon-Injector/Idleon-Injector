@@ -361,6 +361,8 @@ export async function loadUi(router) {
     };
     // Every browser has it; nothing here is laid out, so no frame ever comes (a test that times frames sets its own).
     globalThis.requestAnimationFrame ??= () => 0;
+    // A window listens too (the pins read the config again when it comes back); the fake game may have made a bare one.
+    (globalThis.window ??= {}).addEventListener ??= () => {};
     globalThis.ResizeObserver ??= class {
         observe() {}
         disconnect() {}

@@ -707,6 +707,7 @@ export const configDescriptions = {
     "injectorConfig.webUrl": "Idleon web URL when using browser injection",
     "injectorConfig.browserPath": "Browser executable path for web injection (auto if empty)",
     "injectorConfig.browserUserDataDir": "Browser user data dir for web injection (optional)",
+    "injectorConfig.pinnedCheats": "Cheats pinned to My cheats on Home. The pin on any cheat row adds and removes them",
     "injectorConfig.gameExePath": "Optional: set this to override EXE search on Windows",
 };
 // The on/off settings, with the value each holds when on. The WebUI shows them as switches.

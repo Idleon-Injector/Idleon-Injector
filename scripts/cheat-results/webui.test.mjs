@@ -35,6 +35,10 @@ bridge.executeCheat = (action, on) => {
 const router = new TinyRouter();
 setupCheatRoutes(router, bridge);
 const { store, requests } = await loadUi(router);
+// The Sidebar reads the window size when it loads, the pins listen for the window's focus, and the Sidebar's status line
+// listens on the document for outside clicks.
+globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }), addEventListener() {} };
+globalThis.document.addEventListener = () => {};
 const { CheatRow } = await importRepo("src/ui/components/SystemCheats.js");
 const { default: van } = await importRepo("src/ui/vendor/van-1.6.0.js");
 // The cheat list as the Cheats area gets it, which tells a row whether its cheat switches on and off.
@@ -48,9 +52,6 @@ store.data.cheats = [
 ];
 // A browser's field always holds text; the fake DOM's has none until it's set.
 Object.getPrototypeOf(globalThis.document.createElement("input")).value = "";
-// The Sidebar reads the window size when it loads, and its status line listens on the document for outside clicks.
-globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }), addEventListener() {} };
-globalThis.document.addEventListener = () => {};
 const { Sidebar } = await importRepo("src/ui/components/Sidebar.js");
 const { Home } = await importRepo("src/ui/components/views/Home.js");
 
@@ -150,8 +151,8 @@ test("a cheat that takes a value turns off from its own row without one", async 
     assert.deepEqual(sent, [], "off, it still needs a value to turn on");
 });
 
-// My cheats is Home's right column: a row per cheat, its name the switch.
-test("My cheats lists the cheats that are on, and pressing a name turns exactly that cheat off", async () => {
+// My cheats is Home's right column: a cheat row per cheat, with its real switch.
+test("My cheats lists the cheats that are on, and its switch turns exactly that cheat off", async () => {
     await game.cheat("godlike crit", true);
     await store.loadCheatStates();
     const home = Home();
@@ -161,9 +162,7 @@ test("My cheats lists the cheats that are on, and pressing a name turns exactly 
     assert.ok(names.includes("godlike crit"), names.join(", "));
 
     sent.length = 0;
-    const name = find(rows[names.indexOf("godlike crit")], (node) => /my-cheat__name/.test(classOf(node)))[0];
-    assert.equal(name.attributes["aria-pressed"], "true");
-    name.listeners.click();
+    await flip(rows[names.indexOf("godlike crit")], false);
     await settle();
     assert.deepEqual(sent, [["godlike crit", false]]);
     assert.equal(crit(), false);

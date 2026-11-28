@@ -98,11 +98,9 @@ export const balanceFrame = (root) => {
         const list = 48 * rem;
         const room = viewport.clientWidth - 2 * pad;
         const onPages = store.app.activeTab === VIEWS.PAGES.id;
-        // The Cheats area too, unless the Config drawer takes the window's right side.
-        const inFrame =
-            onPages ||
-            store.app.activeTab === VIEWS.HOME.id ||
-            (store.app.activeTab === VIEWS.CHEATS.id && !store.app.configDrawerOpen);
+        // The Cheats area too, unless the Config drawer takes the window's right side. Home lays itself out across the
+        // whole width (Home.js).
+        const inFrame = onPages || (store.app.activeTab === VIEWS.CHEATS.id && !store.app.configDrawerOpen);
         const fits = inFrame && room - list - SIDE.gap >= SIDE.min;
         viewport.classList.toggle("pages-frame", fits);
         framed.val = fits;
